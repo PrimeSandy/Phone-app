@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Echo Pro - Chat & Voice Calls</title>
+    <title>Echo Pro - Professional Chat & Voice Calls</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -361,6 +361,7 @@
         .status-online {
             background-color: var(--success-color);
             box-shadow: 0 0 8px var(--success-color);
+            animation: pulse 2s infinite;
         }
         
         .status-offline {
@@ -524,6 +525,33 @@
             70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
             100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
         }
+        
+        /* Audio visualization */
+        .audio-visualizer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 3px;
+            margin: 15px 0;
+        }
+        
+        .audio-bar {
+            width: 4px;
+            height: 20px;
+            background: var(--success-color);
+            border-radius: 2px;
+            animation: audioPulse 0.8s infinite alternate;
+        }
+        
+        .audio-bar:nth-child(2) { animation-delay: 0.1s; }
+        .audio-bar:nth-child(3) { animation-delay: 0.2s; }
+        .audio-bar:nth-child(4) { animation-delay: 0.3s; }
+        .audio-bar:nth-child(5) { animation-delay: 0.4s; }
+        
+        @keyframes audioPulse {
+            from { height: 5px; opacity: 0.5; }
+            to { height: 25px; opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -556,7 +584,7 @@
                                 <i class="fas fa-comments fa-4x" style="background: linear-gradient(135deg, #fff, #e0e0e0); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
                             </div>
                             <h2 class="card-title fw-bold">Welcome to Echo Pro</h2>
-                            <p class="text-light">Chat and Voice Calls</p>
+                            <p class="text-light">Professional Chat & Crystal Clear Voice Calls</p>
                         </div>
                         
                         <!-- Google Sign In Button -->
@@ -646,13 +674,15 @@
                                         <div class="form-check mb-2">
                                             <input class="form-check-input" type="radio" name="linkType" id="linkType24" value="24hours" checked>
                                             <label class="form-check-label" for="linkType24">
-                                                24-Hour Connection <small class="text-muted">(Expires after 24 hours)</small>
+                                                <i class="fas fa-clock me-1"></i>24-Hour Connection 
+                                                <small class="text-muted d-block">(Expires after 24 hours)</small>
                                             </label>
                                         </div>
                                         <div class="form-check">
                                             <input class="form-check-input" type="radio" name="linkType" id="linkTypePermanent" value="permanent">
                                             <label class="form-check-label" for="linkTypePermanent">
-                                                Permanent Connection <small class="text-muted">(Never expires)</small>
+                                                <i class="fas fa-infinity me-1"></i>Permanent Connection 
+                                                <small class="text-muted d-block">(Never expires)</small>
                                             </label>
                                         </div>
                                     </div>
@@ -661,7 +691,7 @@
                                         <h6 class="fw-semibold mb-3">Choose Request Method:</h6>
                                         <div class="d-grid gap-2">
                                             <button id="sendEmailRequest" class="btn btn-success">
-                                                <i class="fas fa-envelope me-2"></i>Create Connection Request
+                                                <i class="fas fa-envelope me-2"></i>Send Professional Email
                                             </button>
                                             <button id="generateRequest" class="btn btn-primary">
                                                 <i class="fas fa-link me-2"></i>Generate Shareable Link
@@ -695,7 +725,7 @@
                                 <div class="card-body text-white">
                                     <div id="pendingRequest" class="hidden">
                                         <div class="alert alert-info">
-                                            <h6>Connection Request</h6>
+                                            <h6><i class="fas fa-envelope me-2"></i>Connection Request</h6>
                                             <p class="mb-2">From: <strong id="requestSender"></strong></p>
                                             <p class="mb-2" id="requestTypeInfo"></p>
                                             <div class="d-grid gap-2">
@@ -722,10 +752,11 @@
                 <!-- Contacts Tab -->
                 <div class="tab-pane fade" id="contacts" role="tabpanel">
                     <div class="card glass-card">
-                        <div class="card-header bg-transparent border-bottom-0">
+                        <div class="card-header bg-transparent border-bottom-0 d-flex justify-content-between align-items-center">
                             <h5 class="card-title mb-0 text-white">
                                 <i class="fas fa-users me-2"></i>My Contacts
                             </h5>
+                            <span class="badge bg-primary" id="contactsCount">0 contacts</span>
                         </div>
                         <div class="card-body">
                             <div id="contactsList" class="contacts-container">
@@ -851,7 +882,14 @@
                                         <i class="fas fa-user"></i>
                                     </div>
                                     <h4 class="text-white mb-2" id="callWithUser">Calling...</h4>
-                                    <p class="text-light" id="callStatusText">Connecting...</p>
+                                    <p class="text-light mb-3" id="callStatusText">Connecting...</p>
+                                    <div class="audio-visualizer" id="audioVisualizer">
+                                        <div class="audio-bar"></div>
+                                        <div class="audio-bar"></div>
+                                        <div class="audio-bar"></div>
+                                        <div class="audio-bar"></div>
+                                        <div class="audio-bar"></div>
+                                    </div>
                                     <div class="call-controls">
                                         <button id="muteAudio" class="btn-call btn-warning">
                                             <i class="fas fa-microphone"></i>
@@ -925,6 +963,8 @@
         let callDurationInterval = null;
         let currentCallLinkType = '24hours';
         let isCallRinging = false;
+        let audioContext = null;
+        let audioAnalyser = null;
 
         // Show notification
         function showNotification(message, type = 'info', duration = 5000) {
@@ -1019,6 +1059,9 @@
         function updateContactsList(contacts) {
             userContacts = contacts;
             const contactsList = document.getElementById('contactsList');
+            const contactsCount = document.getElementById('contactsCount');
+            
+            contactsCount.textContent = `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`;
             
             if (contacts.length === 0) {
                 contactsList.innerHTML = `
@@ -1197,13 +1240,18 @@
                         echoCancellation: true,
                         noiseSuppression: true,
                         autoGainControl: true,
-                        channelCount: 1
+                        channelCount: 1,
+                        sampleRate: 48000,
+                        sampleSize: 16
                     },
                     video: false
                 };
                 
                 localStream = await navigator.mediaDevices.getUserMedia(constraints);
                 console.log('🎤 Local audio stream obtained');
+                
+                // Setup audio visualization
+                setupAudioVisualization();
                 
                 // Setup peer connection with proper configuration
                 await setupPeerConnection();
@@ -1229,6 +1277,57 @@
                 showNotification('Failed to start call: ' + error.message, 'danger');
                 hideLoading();
             }
+        }
+
+        // Setup audio visualization
+        function setupAudioVisualization() {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                if (localStream) {
+                    const source = audioContext.createMediaStreamSource(localStream);
+                    audioAnalyser = audioContext.createAnalyser();
+                    audioAnalyser.fftSize = 256;
+                    source.connect(audioAnalyser);
+                    
+                    // Start visualization
+                    visualizeAudio();
+                }
+            } catch (error) {
+                console.log('Audio visualization not supported:', error);
+            }
+        }
+
+        // Visualize audio
+        function visualizeAudio() {
+            if (!audioAnalyser) return;
+            
+            const bufferLength = audioAnalyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            function draw() {
+                if (!audioAnalyser) return;
+                
+                audioAnalyser.getByteFrequencyData(dataArray);
+                
+                const bars = document.querySelectorAll('.audio-bar');
+                if (bars.length > 0) {
+                    const step = Math.floor(bufferLength / bars.length);
+                    
+                    bars.forEach((bar, i) => {
+                        const value = dataArray[i * step] || 0;
+                        const height = Math.max(5, (value / 255) * 30);
+                        bar.style.height = `${height}px`;
+                        bar.style.opacity = Math.max(0.3, value / 255);
+                    });
+                }
+                
+                requestAnimationFrame(draw);
+            }
+            
+            draw();
         }
 
         // WebRTC Functions
@@ -1268,6 +1367,17 @@
                     console.log('🔊 Remote audio track received');
                     if (event.streams && event.streams[0]) {
                         remoteStream = event.streams[0];
+                        
+                        // Create audio element for remote stream
+                        const remoteAudio = new Audio();
+                        remoteAudio.srcObject = remoteStream;
+                        remoteAudio.autoplay = true;
+                        remoteAudio.volume = 1.0;
+                        
+                        // Play the remote audio
+                        remoteAudio.play().catch(e => {
+                            console.log('Remote audio play error:', e);
+                        });
                         
                         // Show notification for audio tracks
                         const audioTracks = remoteStream.getAudioTracks();
@@ -1398,6 +1508,17 @@
                     console.log('🔊 Remote audio track received in answer');
                     if (event.streams && event.streams[0]) {
                         remoteStream = event.streams[0];
+                        
+                        // Create audio element for remote stream
+                        const remoteAudio = new Audio();
+                        remoteAudio.srcObject = remoteStream;
+                        remoteAudio.autoplay = true;
+                        remoteAudio.volume = 1.0;
+                        
+                        // Play the remote audio
+                        remoteAudio.play().catch(e => {
+                            console.log('Remote audio play error:', e);
+                        });
                         
                         const audioTracks = remoteStream.getAudioTracks();
                         if (audioTracks.length > 0) {
@@ -1532,7 +1653,7 @@
             auth.signOut();
         });
 
-        // Send direct email request
+        // Send professional email request
         document.getElementById('sendEmailRequest').addEventListener('click', async () => {
             const senderEmail = document.getElementById('senderEmail').value;
             const receiverEmail = document.getElementById('receiverEmail').value;
@@ -1540,6 +1661,11 @@
             
             if (!receiverEmail) {
                 showNotification('Please enter receiver email', 'warning');
+                return;
+            }
+
+            if (!validateEmail(receiverEmail)) {
+                showNotification('Please enter a valid email address', 'warning');
                 return;
             }
 
@@ -1556,7 +1682,7 @@
                     showNotification(result.message, 'success');
                     document.getElementById('receiverEmail').value = '';
                     
-                    // Show shareable link
+                    // Show shareable link as backup
                     if (result.shareableLink) {
                         const requestResult = document.getElementById('requestResult');
                         document.getElementById('shareableLink').value = result.shareableLink;
@@ -1577,6 +1703,12 @@
                 hideLoading();
             }
         });
+
+        // Email validation
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
 
         // Generate connection request (link only)
         document.getElementById('generateRequest').addEventListener('click', async () => {
@@ -2063,12 +2195,17 @@
                         echoCancellation: true,
                         noiseSuppression: true,
                         autoGainControl: true,
-                        channelCount: 1
+                        channelCount: 1,
+                        sampleRate: 48000,
+                        sampleSize: 16
                     },
                     video: false
                 };
                 
                 localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // Setup audio visualization
+                setupAudioVisualization();
                 
                 await setupPeerConnectionForAnswer();
                 
@@ -2141,6 +2278,13 @@
                 peerConnection = null;
             }
             
+            // Clean up audio context
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+                audioAnalyser = null;
+            }
+            
             if (currentChatUser && currentCallId) {
                 socket.emit('end-call', { 
                     toUser: currentChatUser,
@@ -2195,7 +2339,7 @@
             });
         });
 
-        console.log('🚀 Echo Pro App Loaded - Chat & Voice Calls Only');
+        console.log('🚀 Echo Pro App Loaded - Professional Chat & Voice Calls');
     </script>
 </body>
 </html>
