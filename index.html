@@ -508,38 +508,42 @@
         });
 
         // Generate connection request
-        document.getElementById('generateRequest').addEventListener('click', async () => {
-            const senderEmail = document.getElementById('senderEmail').value;
-            const receiverEmail = document.getElementById('receiverEmail').value;
-            
-            if (!receiverEmail) {
-                alert('Please enter receiver email');
-                return;
-            }
+   // Generate connection request
+document.getElementById('generateRequest').addEventListener('click', async () => {
+    const senderEmail = document.getElementById('senderEmail').value;
+    const receiverEmail = document.getElementById('receiverEmail').value;
+    
+    if (!receiverEmail) {
+        alert('Please enter receiver email');
+        return;
+    }
 
-            try {
-                showLoading();
-                const response = await fetch('/api/generate-request', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ senderEmail, receiverEmail })
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    const requestResult = document.getElementById('requestResult');
-                    document.getElementById('shareableLink').value = result.shareableLink;
-                    requestResult.classList.remove('hidden');
-                } else {
-                    alert('Error: ' + result.error);
-                }
-            } catch (error) {
-                console.error('Error generating request:', error);
-                alert('Failed to generate request');
-            } finally {
-                hideLoading();
-            }
+    try {
+        showLoading();
+        const response = await fetch('/api/generate-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ senderEmail, receiverEmail })
         });
+        
+        const result = await response.json();
+        if (result.success) {
+            const requestResult = document.getElementById('requestResult');
+            document.getElementById('shareableLink').value = result.shareableLink;
+            requestResult.classList.remove('hidden');
+            console.log('✅ Request generated successfully:', result);
+        } else {
+            console.error('❌ Server error:', result);
+            alert('Error: ' + (result.error || 'Unknown error occurred'));
+        }
+    } catch (error) {
+        console.error('❌ Network error:', error);
+        alert('Failed to generate request. Check console for details.');
+    } finally {
+        hideLoading();
+    }
+});
+
 
         // Copy link
         document.getElementById('copyLink').addEventListener('click', () => {
@@ -915,3 +919,4 @@
     </script>
 </body>
 </html>
+
