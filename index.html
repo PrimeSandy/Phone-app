@@ -3,653 +3,1385 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Echo Connect</title>
+    <title>Echo - Real-Time Connect</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        :root {
+            --primary-color: #6366f1;
+            --secondary-color: #8b5cf6;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
         }
-
-        body {
-            background-color: #f5f7fa;
-            color: #333;
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        header {
-            background: linear-gradient(135deg, #6e8efb, #a777e3);
-            color: white;
-            padding: 20px 0;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        header h1 {
-            text-align: center;
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-
-        header p {
-            text-align: center;
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
-        .main-content {
-            display: flex;
-            gap: 30px;
-        }
-
-        .section {
-            flex: 1;
-            background: white;
-            border-radius: 10px;
-            padding: 25px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-        }
-
-        .section h2 {
-            color: #6e8efb;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #555;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 12px 15px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 16px;
-            transition: border 0.3s;
-        }
-
-        input:focus, select:focus {
-            border-color: #6e8efb;
-            outline: none;
-        }
-
-        .btn {
-            display: inline-block;
-            background: #6e8efb;
-            color: white;
-            padding: 12px 25px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            transition: all 0.3s;
-            text-align: center;
-            text-decoration: none;
-        }
-
-        .btn:hover {
-            background: #5a7dfa;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn-secondary {
-            background: #a777e3;
-        }
-
-        .btn-secondary:hover {
-            background: #9666d8;
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .contact-list {
-            list-style: none;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .contact-item {
+        
+        .hidden { display: none !important; }
+        .chat-container { 
+            height: 400px; 
+            overflow-y: auto; 
+            border: 1px solid #e5e7eb; 
             padding: 15px;
-            border-bottom: 1px solid #f0f0f0;
-            display: flex;
-            justify-content: between;
-            align-items: center;
-            transition: background 0.2s;
-        }
-
-        .contact-item:hover {
-            background: #f9f9f9;
-        }
-
-        .contact-info {
-            flex: 1;
-        }
-
-        .contact-name {
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .contact-status {
-            font-size: 0.9rem;
-            color: #777;
-        }
-
-        .contact-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .action-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 1.2rem;
-            color: #6e8efb;
-            transition: color 0.2s;
-        }
-
-        .action-btn:hover {
-            color: #5a7dfa;
-        }
-
-        .chat-container {
-            display: none;
-            margin-top: 30px;
-            background: white;
             border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            background: #fafafa;
+        }
+        .message { 
+            margin-bottom: 12px; 
+            padding: 10px 15px; 
+            border-radius: 15px; 
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .own-message { 
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white; 
+            margin-left: auto;
+            margin-right: 10px;
+            border-bottom-right-radius: 5px;
+        }
+        .other-message { 
+            background-color: white; 
+            color: #374151; 
+            margin-right: auto;
+            margin-left: 10px;
+            border: 1px solid #e5e7eb;
+            border-bottom-left-radius: 5px;
+        }
+        .system-message {
+            background-color: #f3f4f6;
+            color: #6b7280;
+            text-align: center;
+            margin: 10px auto;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            max-width: 60%;
+        }
+        .video-container { 
+            position: relative; 
+            width: 100%; 
+            height: 400px; 
+            background: #1f2937;
+            border-radius: 10px;
             overflow: hidden;
         }
-
-        .chat-header {
-            background: #6e8efb;
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        #localVideo, #remoteVideo { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
         }
-
-        .chat-messages {
-            height: 300px;
-            padding: 20px;
-            overflow-y: auto;
-            background: #f9f9f9;
-        }
-
-        .message {
-            margin-bottom: 15px;
-            padding: 12px 15px;
+        #localVideo { 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
+            width: 200px; 
+            height: 150px; 
+            z-index: 10;
+            border: 2px solid white;
             border-radius: 10px;
-            max-width: 80%;
         }
-
-        .sent {
-            background: #6e8efb;
-            color: white;
-            margin-left: auto;
-        }
-
-        .received {
-            background: #e9ecef;
-            color: #333;
-        }
-
-        .chat-input {
-            display: flex;
+        .call-controls { 
+            position: absolute; 
+            bottom: 20px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            z-index: 10;
+            background: rgba(0,0,0,0.7);
             padding: 15px;
-            border-top: 1px solid #eee;
+            border-radius: 50px;
         }
-
-        .chat-input input {
-            flex: 1;
-            margin-right: 10px;
+        .btn-call {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 0 10px;
+            border: none;
+            font-size: 1.2em;
         }
-
+        .connection-card {
+            border-left: 4px solid var(--primary-color);
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        }
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5em;
+        }
+        .google-btn {
+            background: white;
+            color: #757575;
+            border: 1px solid #dadce0;
+        }
+        .google-btn:hover {
+            background: #f8f9fa;
+            border-color: #dadce0;
+        }
         .notification {
             position: fixed;
             top: 20px;
             right: 20px;
-            padding: 15px 20px;
-            background: #4CAF50;
-            color: white;
-            border-radius: 5px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
             z-index: 1000;
-            display: none;
+            min-width: 300px;
         }
-
-        .notification.error {
-            background: #f44336;
-        }
-
-        .call-controls {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .call-btn {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .call-accept {
-            background: #4CAF50;
-            color: white;
-        }
-
-        .call-reject {
-            background: #f44336;
-            color: white;
-        }
-
-        .call-end {
-            background: #f44336;
-            color: white;
-        }
-
-        .active-call {
-            background: #f0f8ff;
+        .call-notification {
+            background: white;
+            border: 2px solid var(--primary-color);
+            border-radius: 10px;
             padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            text-align: center;
-            border: 1px solid #6e8efb;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-
-        @media (max-width: 768px) {
-            .main-content {
-                flex-direction: column;
-            }
+        .contact-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+        .contact-item:hover {
+            background-color: #f8f9fa;
+            border-color: var(--primary-color);
+        }
+        .contact-online {
+            border-left: 4px solid var(--success-color);
+        }
+        .contact-offline {
+            border-left: 4px solid #6b7280;
+        }
+        .online-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .online {
+            background-color: var(--success-color);
+        }
+        .offline {
+            background-color: #6b7280;
+        }
+        .tab-content {
+            min-height: 200px;
+        }
+        .request-options {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+        .active-chat-user {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>Echo Connect</h1>
-            <p>Connect with friends and colleagues seamlessly</p>
-        </header>
-
-        <div class="main-content">
-            <div class="section">
-                <h2>Connections</h2>
-                <div class="form-group">
-                    <label>Your Email</label>
-                    <input type="email" id="userEmail" value="gowtham2006x@gmail.com" readonly>
-                </div>
-                <div class="form-group">
-                    <label>Receiver's Email</label>
-                    <input type="email" id="receiverEmail" placeholder="Enter receiver's email">
-                </div>
-                <div class="form-group">
-                    <label>Choose Request Method</label>
-                    <select id="requestMethod">
-                        <option value="email">Email Request</option>
-                        <option value="link">Shareable Link</option>
-                    </select>
-                </div>
-                <div class="btn-group">
-                    <button class="btn" id="createConnection">Create Connection Request</button>
-                    <button class="btn btn-secondary" id="generateLink">Generate Shareable Link</button>
-                </div>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-dark gradient-bg shadow">
+        <div class="container">
+            <span class="navbar-brand">
+                <i class="fas fa-comments me-2"></i>Echo Connect
+            </span>
+            <div id="userInfo" class="hidden">
+                <span class="navbar-text me-3" id="navUserEmail"></span>
+                <button id="signOut" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-sign-out-alt me-1"></i>Sign Out
+                </button>
             </div>
+        </div>
+    </nav>
 
-            <div class="section">
-                <h2>Contacts</h2>
-                <ul class="contact-list" id="contactList">
-                    <!-- Contacts will be populated here -->
-                </ul>
-                <div class="form-group" style="margin-top: 20px;">
-                    <label>Join Connection</label>
-                    <input type="text" id="joinConnection" placeholder="Enter connection code or link">
-                    <button class="btn" style="margin-top: 10px; width: 100%;" id="joinBtn">Join Connection</button>
+    <!-- Notifications -->
+    <div id="notifications" class="notification"></div>
+
+    <div class="container-fluid py-4">
+        <!-- Firebase Auth Section -->
+        <div id="authSection" class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card shadow border-0">
+                    <div class="card-body p-5">
+                        <div class="text-center mb-4">
+                            <i class="fas fa-comments fa-3x gradient-text mb-3" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+                            <h2 class="card-title">Welcome to Echo</h2>
+                            <p class="text-muted">Real-time chat and video calls</p>
+                        </div>
+                        
+                        <!-- Google Sign In Button -->
+                        <div class="d-grid gap-2 mb-4">
+                            <button id="googleSignIn" class="btn google-btn btn-lg">
+                                <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" style="width: 20px; height: 20px; margin-right: 10px;">
+                                Continue with Google
+                            </button>
+                        </div>
+
+                        <div class="divider d-flex align-items-center my-4">
+                            <p class="text-center text-muted mx-3 mb-0">Or</p>
+                        </div>
+                        
+                        <!-- Email/Password Auth -->
+                        <div class="mb-3">
+                            <input type="email" id="authEmail" class="form-control form-control-lg" placeholder="Enter your email">
+                        </div>
+                        <div class="mb-3">
+                            <input type="password" id="authPassword" class="form-control form-control-lg" placeholder="Enter your password">
+                        </div>
+                        <div class="d-grid gap-2 mb-3">
+                            <button id="signInBtn" class="btn btn-primary btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                            </button>
+                            <button id="signUpBtn" class="btn btn-outline-primary btn-lg">
+                                <i class="fas fa-user-plus me-2"></i>Sign Up
+                            </button>
+                        </div>
+                        <div id="authMessage" class="alert hidden"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="chat-container" id="chatContainer">
-            <div class="chat-header">
-                <h3 id="chatWith">Chat with Contact</h3>
-                <div class="call-controls">
-                    <button class="call-btn call-accept" id="startCall">
-                        <i>📞</i>
+        <!-- Main App Section -->
+        <div id="appSection" class="hidden">
+            <!-- Tabs for different sections -->
+            <ul class="nav nav-pills nav-justified mb-4" id="appTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="connections-tab" data-bs-toggle="tab" data-bs-target="#connections" type="button" role="tab">
+                        <i class="fas fa-link me-2"></i>Connections
                     </button>
-                    <button class="call-btn call-end" id="endCall" style="display: none;">
-                        <i>📵</i>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="contacts-tab" data-bs-toggle="tab" data-bs-target="#contacts" type="button" role="tab">
+                        <i class="fas fa-users me-2"></i>Contacts
                     </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat" type="button" role="tab">
+                        <i class="fas fa-comments me-2"></i>Chat
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="appTabsContent">
+                <!-- Connections Tab -->
+                <div class="tab-pane fade show active" id="connections" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="card connection-card shadow h-100">
+                                <div class="card-header bg-white">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-plus-circle me-2"></i>Create New Connection
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Your Email</label>
+                                        <input type="email" id="senderEmail" class="form-control" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold">Receiver's Email</label>
+                                        <input type="email" id="receiverEmail" class="form-control" placeholder="Enter receiver's email">
+                                    </div>
+                                    
+                                    <div class="request-options">
+                                        <h6 class="fw-semibold mb-3">Choose Request Method:</h6>
+                                        <div class="d-grid gap-2">
+                                            <button id="sendEmailRequest" class="btn btn-success">
+                                                <i class="fas fa-envelope me-2"></i>Create Connection Request
+                                            </button>
+                                            <button id="generateRequest" class="btn btn-primary">
+                                                <i class="fas fa-link me-2"></i>Generate Shareable Link
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="requestResult" class="mt-4 p-3 bg-light rounded hidden">
+                                        <h6 class="fw-semibold">Share this link:</h6>
+                                        <div class="input-group">
+                                            <input type="text" id="shareableLink" class="form-control" readonly>
+                                            <button id="copyLink" class="btn btn-outline-secondary">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
+                                        <small class="text-muted mt-2 d-block">
+                                            Send this link to your friend to start chatting
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <div class="card connection-card shadow h-100">
+                                <div class="card-header bg-white">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-user-check me-2"></i>Join Connection
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="pendingRequest" class="hidden">
+                                        <div class="alert alert-info">
+                                            <h6>Connection Request</h6>
+                                            <p class="mb-2">From: <strong id="requestSender"></strong></p>
+                                            <div class="d-grid gap-2">
+                                                <button id="acceptRequest" class="btn btn-success">
+                                                    <i class="fas fa-check me-2"></i>Accept Request
+                                                </button>
+                                                <button id="rejectRequest" class="btn btn-outline-danger">
+                                                    <i class="fas fa-times me-2"></i>Reject
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="noRequest" class="text-center py-4">
+                                        <i class="fas fa-envelope-open-text fa-2x text-muted mb-3"></i>
+                                        <p class="text-muted">Waiting for connection request...</p>
+                                        <small class="text-muted">When someone shares a link with you, it will appear here</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contacts Tab -->
+                <div class="tab-pane fade" id="contacts" role="tabpanel">
+                    <div class="card shadow">
+                        <div class="card-header bg-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-users me-2"></i>My Contacts
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="contactsList" class="contacts-container">
+                                <div class="text-center py-4">
+                                    <i class="fas fa-users fa-2x text-muted mb-3"></i>
+                                    <p class="text-muted">No contacts yet</p>
+                                    <small class="text-muted">Connect with people to see them here</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Tab -->
+                <div class="tab-pane fade" id="chat" role="tabpanel">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card shadow">
+                                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-comments me-2"></i>Chat
+                                        <span id="connectionStatus" class="badge bg-success ms-2">Connected</span>
+                                    </h5>
+                                    <div id="chatControls" class="hidden">
+                                        <div class="d-flex align-items-center">
+                                            <span class="me-3" id="chatWithUser"></span>
+                                            <button id="startVoiceCall" class="btn btn-success btn-sm me-2">
+                                                <i class="fas fa-phone me-1"></i>Voice Call
+                                            </button>
+                                            <button id="startVideoCall" class="btn btn-info btn-sm me-2">
+                                                <i class="fas fa-video me-1"></i>Video Call
+                                            </button>
+                                            <button id="endCall" class="btn btn-danger btn-sm hidden">
+                                                <i class="fas fa-phone-slash me-1"></i>End Call
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div id="noActiveChat" class="text-center py-4">
+                                        <i class="fas fa-comments fa-2x text-muted mb-3"></i>
+                                        <p class="text-muted">No active chat</p>
+                                        <small class="text-muted">Select a contact from Contacts tab to start chatting</small>
+                                    </div>
+                                    <div id="chatSection" class="hidden">
+                                        <div id="activeChatUser" class="active-chat-user hidden">
+                                            Chatting with: <strong id="currentChatUser"></strong>
+                                        </div>
+                                        <div id="chatMessages" class="chat-container mb-3"></div>
+                                        <div class="input-group">
+                                            <input type="text" id="messageInput" class="form-control form-control-lg" placeholder="Type your message...">
+                                            <button id="sendMessage" class="btn btn-primary">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="chat-messages" id="chatMessages">
-                <!-- Messages will appear here -->
-            </div>
-            <div class="chat-input">
-                <input type="text" id="messageInput" placeholder="Type your message...">
-                <button class="btn" id="sendMessage">Send</button>
+
+            <!-- Call Section -->
+            <div id="callSection" class="hidden">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card shadow">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-phone me-2"></i>Call in Progress
+                                </h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="video-container">
+                                    <video id="localVideo" autoplay muted></video>
+                                    <video id="remoteVideo" autoplay></video>
+                                    <div class="call-controls">
+                                        <button id="muteAudio" class="btn-call btn-warning">
+                                            <i class="fas fa-microphone"></i>
+                                        </button>
+                                        <button id="muteVideo" class="btn-call btn-warning">
+                                            <i class="fas fa-video"></i>
+                                        </button>
+                                        <button id="endCallBtn" class="btn-call btn-danger">
+                                            <i class="fas fa-phone-slash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <div class="notification" id="notification"></div>
     </div>
 
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="hidden position-fixed top-50 start-50 translate-middle">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Firebase and Socket.io -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // DOM Elements
-            const userEmail = document.getElementById('userEmail');
-            const receiverEmail = document.getElementById('receiverEmail');
-            const requestMethod = document.getElementById('requestMethod');
-            const createConnection = document.getElementById('createConnection');
-            const generateLink = document.getElementById('generateLink');
-            const contactList = document.getElementById('contactList');
-            const joinConnection = document.getElementById('joinConnection');
-            const joinBtn = document.getElementById('joinBtn');
-            const chatContainer = document.getElementById('chatContainer');
-            const chatWith = document.getElementById('chatWith');
-            const chatMessages = document.getElementById('chatMessages');
-            const messageInput = document.getElementById('messageInput');
-            const sendMessage = document.getElementById('sendMessage');
-            const notification = document.getElementById('notification');
-            const startCall = document.getElementById('startCall');
-            const endCall = document.getElementById('endCall');
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyALXM9g6HkFHuHLYNXjZ417_9d6bkPGatc",
+            authDomain: "tracker-pts.firebaseapp.com",
+            projectId: "tracker-pts",
+            storageBucket: "tracker-pts.firebasestorage.app",
+            messagingSenderId: "237919442573",
+            appId: "1:237919442573:web:e3abad42a0a1f49f5334c4",
+            measurementId: "G-R5K7KNKMYS"
+        };
 
-            // State variables
-            let contacts = [
-                { id: 1, name: "Alex Johnson", email: "alex.j@example.com", status: "Online", lastSeen: "" },
-                { id: 2, name: "Sarah Miller", email: "sarah.m@example.com", status: "Offline", lastSeen: "2 hours ago" },
-                { id: 3, name: "Mike Chen", email: "mike.c@example.com", status: "Online", lastSeen: "" },
-                { id: 4, name: "Emma Wilson", email: "emma.w@example.com", status: "Away", lastSeen: "30 minutes ago" }
-            ];
-            
-            let selectedContact = null;
-            let isInCall = false;
-            let callTimer = null;
-            let notificationTimer = null;
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
 
-            // Initialize the app
-            function init() {
-                renderContacts();
-                setupEventListeners();
-            }
-
-            // Render contacts list
-            function renderContacts() {
-                contactList.innerHTML = '';
-                
-                contacts.forEach(contact => {
-                    const contactItem = document.createElement('li');
-                    contactItem.className = 'contact-item';
-                    contactItem.innerHTML = `
-                        <div class="contact-info">
-                            <div class="contact-name">${contact.name}</div>
-                            <div class="contact-status">${contact.status} ${contact.lastSeen ? `• ${contact.lastSeen}` : ''}</div>
-                        </div>
-                        <div class="contact-actions">
-                            <button class="action-btn chat-btn" data-id="${contact.id}">💬</button>
-                            <button class="action-btn call-btn" data-id="${contact.id}">📞</button>
-                        </div>
-                    `;
-                    contactList.appendChild(contactItem);
-                });
-
-                // Add event listeners to contact buttons
-                document.querySelectorAll('.chat-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const contactId = parseInt(this.getAttribute('data-id'));
-                        selectContact(contactId);
-                        openChat(contactId);
-                    });
-                });
-
-                document.querySelectorAll('.call-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const contactId = parseInt(this.getAttribute('data-id'));
-                        selectContact(contactId);
-                        startCallWithContact(contactId);
-                    });
-                });
-            }
-
-            // Set up event listeners
-            function setupEventListeners() {
-                createConnection.addEventListener('click', createConnectionRequest);
-                generateLink.addEventListener('click', generateShareableLink);
-                joinBtn.addEventListener('click', joinConnectionRequest);
-                sendMessage.addEventListener('click', sendMessageHandler);
-                messageInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') sendMessageHandler();
-                });
-                startCall.addEventListener('click', startCallHandler);
-                endCall.addEventListener('click', endCallHandler);
-            }
-
-            // Select a contact
-            function selectContact(contactId) {
-                selectedContact = contacts.find(contact => contact.id === contactId);
-                if (selectedContact) {
-                    chatWith.textContent = `Chat with ${selectedContact.name}`;
-                }
-            }
-
-            // Open chat with selected contact
-            function openChat(contactId) {
-                if (!selectedContact) {
-                    showNotification('Please select a contact to chat with', true);
-                    return;
-                }
-                
-                chatContainer.style.display = 'block';
-                chatMessages.innerHTML = '';
-                
-                // Add sample messages
-                addMessage('Hello! How are you?', 'received');
-                addMessage('I am doing great! Thanks for asking.', 'sent');
-                
-                // Scroll to bottom
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-
-            // Send message handler
-            function sendMessageHandler() {
-                if (!selectedContact) {
-                    showNotification('Please select a contact to chat with', true);
-                    return;
-                }
-                
-                const message = messageInput.value.trim();
-                if (message === '') return;
-                
-                addMessage(message, 'sent');
-                messageInput.value = '';
-                
-                // Simulate reply after a delay
-                setTimeout(() => {
-                    if (selectedContact) {
-                        const replies = [
-                            "That's interesting!",
-                            "I see what you mean.",
-                            "Let me think about that.",
-                            "Thanks for sharing!",
-                            "I agree with you."
-                        ];
-                        const randomReply = replies[Math.floor(Math.random() * replies.length)];
-                        addMessage(randomReply, 'received');
-                    }
-                }, 1000);
-            }
-
-            // Add message to chat
-            function addMessage(text, type) {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `message ${type}`;
-                messageDiv.textContent = text;
-                chatMessages.appendChild(messageDiv);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-
-            // Start call handler
-            function startCallHandler() {
-                if (!selectedContact) {
-                    showNotification('Please select a contact to call', true);
-                    return;
-                }
-                
-                startCallWithContact(selectedContact.id);
-            }
-
-            // Start call with contact
-            function startCallWithContact(contactId) {
-                if (isInCall) {
-                    showNotification('You are already in a call', true);
-                    return;
-                }
-                
-                const contact = contacts.find(c => c.id === contactId);
-                if (!contact) return;
-                
-                isInCall = true;
-                startCall.style.display = 'none';
-                endCall.style.display = 'flex';
-                
-                showNotification(`Calling ${contact.name}...`);
-                
-                // Simulate call duration
-                let callDuration = 0;
-                callTimer = setInterval(() => {
-                    callDuration++;
-                    if (callDuration >= 30) {
-                        endCallHandler(); // Auto end after 30 seconds for demo
-                    }
-                }, 1000);
-            }
-
-            // End call handler
-            function endCallHandler() {
-                if (!isInCall) return;
-                
-                isInCall = false;
-                startCall.style.display = 'flex';
-                endCall.style.display = 'none';
-                
-                if (callTimer) {
-                    clearInterval(callTimer);
-                    callTimer = null;
-                }
-                
-                // Show call ended notification only once
-                if (selectedContact) {
-                    showNotification(`Call with ${selectedContact.name} ended`);
-                }
-            }
-
-            // Create connection request
-            function createConnectionRequest() {
-                const email = receiverEmail.value.trim();
-                if (email === '') {
-                    showNotification('Please enter receiver email', true);
-                    return;
-                }
-                
-                showNotification('Connection request sent successfully');
-                receiverEmail.value = '';
-                
-                // Add to contacts after a delay (simulating acceptance)
-                setTimeout(() => {
-                    const newContact = {
-                        id: contacts.length + 1,
-                        name: email.split('@')[0],
-                        email: email,
-                        status: "Online",
-                        lastSeen: ""
-                    };
-                    contacts.push(newContact);
-                    renderContacts();
-                    showNotification(`${email} has accepted your connection request`);
-                }, 2000);
-            }
-
-            // Generate shareable link
-            function generateShareableLink() {
-                const link = `https://echoconnect.com/join/${generateRandomCode()}`;
-                showNotification(`Shareable link created: ${link}`);
-                
-                // In a real app, you would copy this to clipboard
-            }
-
-            // Join connection request
-            function joinConnectionRequest() {
-                const code = joinConnection.value.trim();
-                if (code === '') {
-                    showNotification('Please enter a connection code or link', true);
-                    return;
-                }
-                
-                showNotification('Connection request sent');
-                joinConnection.value = '';
-            }
-
-            // Show notification
-            function showNotification(message, isError = false) {
-                notification.textContent = message;
-                notification.className = 'notification';
-                
-                if (isError) {
-                    notification.classList.add('error');
-                }
-                
-                notification.style.display = 'block';
-                
-                // Clear any existing timer
-                if (notificationTimer) {
-                    clearTimeout(notificationTimer);
-                }
-                
-                // Hide after 3 seconds
-                notificationTimer = setTimeout(() => {
-                    notification.style.display = 'none';
-                }, 3000);
-            }
-
-            // Generate random code for shareable links
-            function generateRandomCode() {
-                return Math.random().toString(36).substring(2, 8).toUpperCase();
-            }
-
-            // Initialize the application
-            init();
+        // Socket.io connection
+        const socket = io({
+            transports: ['websocket', 'polling']
         });
+
+        // DOM Elements
+        const authSection = document.getElementById('authSection');
+        const appSection = document.getElementById('appSection');
+        const userInfo = document.getElementById('userInfo');
+        const navUserEmail = document.getElementById('navUserEmail');
+        const signOutBtn = document.getElementById('signOut');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const notifications = document.getElementById('notifications');
+
+        // Application state
+        let currentUser = null;
+        let currentConnectionId = null;
+        let currentChatUser = null;
+        let peerConnection = null;
+        let localStream = null;
+        let currentCallType = null;
+        let userContacts = [];
+        let isInCall = false;
+
+        // Show notification
+        function showNotification(message, type = 'info', duration = 5000) {
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} alert-dismissible fade show`;
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            notifications.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, duration);
+        }
+
+        // Show call notification
+        function showCallNotification(from, callType) {
+            const callNotification = document.createElement('div');
+            callNotification.className = 'call-notification';
+            callNotification.innerHTML = `
+                <h6>Incoming ${callType} Call</h6>
+                <p>From: <strong>${from}</strong></p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success btn-sm answer-call">
+                        <i class="fas fa-phone me-1"></i>Answer
+                    </button>
+                    <button class="btn btn-danger btn-sm decline-call">
+                        <i class="fas fa-phone-slash me-1"></i>Decline
+                    </button>
+                </div>
+            `;
+            notifications.appendChild(callNotification);
+            
+            // Add event listeners
+            callNotification.querySelector('.answer-call').addEventListener('click', () => {
+                answerIncomingCall();
+                callNotification.remove();
+            });
+            
+            callNotification.querySelector('.decline-call').addEventListener('click', () => {
+                declineIncomingCall();
+                callNotification.remove();
+            });
+            
+            // Auto remove after 30 seconds
+            setTimeout(() => {
+                if (callNotification.parentNode) {
+                    callNotification.remove();
+                    // Auto decline if not answered
+                    if (window.incomingCallData) {
+                        declineIncomingCall();
+                    }
+                }
+            }, 30000);
+        }
+
+        // Show loading spinner
+        function showLoading() {
+            loadingSpinner.classList.remove('hidden');
+        }
+
+        // Hide loading spinner
+        function hideLoading() {
+            loadingSpinner.classList.add('hidden');
+        }
+
+        // Show message
+        function showMessage(message, type = 'info') {
+            const authMessage = document.getElementById('authMessage');
+            authMessage.textContent = message;
+            authMessage.className = `alert alert-${type}`;
+            authMessage.classList.remove('hidden');
+            setTimeout(() => {
+                authMessage.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Update contacts list
+        function updateContactsList(contacts) {
+            userContacts = contacts;
+            const contactsList = document.getElementById('contactsList');
+            
+            if (contacts.length === 0) {
+                contactsList.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="fas fa-users fa-2x text-muted mb-3"></i>
+                        <p class="text-muted">No contacts yet</p>
+                        <small class="text-muted">Connect with people to see them here</small>
+                    </div>
+                `;
+                return;
+            }
+            
+            contactsList.innerHTML = contacts.map(contact => `
+                <div class="contact-item ${contact.isOnline ? 'contact-online' : 'contact-offline'}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="online-indicator ${contact.isOnline ? 'online' : 'offline'}"></span>
+                            <strong>${contact.email}</strong>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-primary chat-with-user" data-email="${contact.email}">
+                                <i class="fas fa-comment"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-success call-user" data-email="${contact.email}" data-type="voice">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-info call-user" data-email="${contact.email}" data-type="video">
+                                <i class="fas fa-video"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="text-muted small mt-1">
+                        ${contact.isOnline ? 
+                            '<span class="text-success">Online</span>' : 
+                            `Last seen: ${new Date(contact.lastSeen).toLocaleTimeString()}`
+                        }
+                    </div>
+                </div>
+            `).join('');
+            
+            // Add event listeners to chat buttons
+            contactsList.querySelectorAll('.chat-with-user').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const email = e.target.closest('button').dataset.email;
+                    startChatWithUser(email);
+                });
+            });
+            
+            // Add event listeners to call buttons
+            contactsList.querySelectorAll('.call-user').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const email = e.target.closest('button').dataset.email;
+                    const callType = e.target.closest('button').dataset.type;
+                    startCallWithUser(email, callType === 'video');
+                });
+            });
+        }
+
+        // Start chat with user
+        function startChatWithUser(userEmail) {
+            currentChatUser = userEmail;
+            document.getElementById('currentChatUser').textContent = userEmail;
+            document.getElementById('activeChatUser').classList.remove('hidden');
+            document.getElementById('noActiveChat').classList.add('hidden');
+            document.getElementById('chatSection').classList.remove('hidden');
+            document.getElementById('chatControls').classList.remove('hidden');
+            document.getElementById('chatWithUser').textContent = `Chatting with: ${userEmail}`;
+            
+            // Find connection ID for this user
+            findConnectionWithUser(userEmail).then(connectionId => {
+                if (connectionId) {
+                    currentConnectionId = connectionId;
+                    // Load chat history if available
+                    loadChatHistory(connectionId);
+                } else {
+                    showNotification('No active connection found with this user', 'warning');
+                }
+            });
+            
+            // Switch to chat tab
+            document.getElementById('chat-tab').click();
+        }
+
+        // Find connection with user
+        async function findConnectionWithUser(userEmail) {
+            try {
+                const response = await fetch(`/api/user-connections/${currentUser.email}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const connection = result.connections.find(conn => 
+                        conn.otherUser === userEmail
+                    );
+                    return connection ? connection.connectionId : null;
+                }
+            } catch (error) {
+                console.error('Error finding connection:', error);
+            }
+            return null;
+        }
+
+        // Start call with user
+        async function startCallWithUser(userEmail, isVideo) {
+            if (!currentUser) return;
+            
+            try {
+                currentCallType = isVideo ? 'video' : 'voice';
+                showLoading();
+                
+                // Get user media
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: isVideo,
+                    audio: true
+                });
+                
+                if (isVideo) {
+                    document.getElementById('localVideo').srcObject = localStream;
+                }
+                
+                setupPeerConnection();
+                
+                // Start the call
+                socket.emit('start-call', {
+                    userEmail: currentUser.email,
+                    otherUserEmail: userEmail,
+                    callType: currentCallType
+                });
+                
+                showCallInterface(isVideo);
+                hideLoading();
+                showNotification(`Calling ${userEmail}...`, 'info');
+                isInCall = true;
+            } catch (error) {
+                console.error('Error starting call:', error);
+                showNotification('Failed to start call: ' + error.message, 'danger');
+                hideLoading();
+            }
+        }
+
+        // Google Sign In
+        document.getElementById('googleSignIn').addEventListener('click', async () => {
+            try {
+                showLoading();
+                const provider = new firebase.auth.GoogleAuthProvider();
+                provider.addScope('email');
+                provider.addScope('profile');
+                
+                const result = await auth.signInWithPopup(provider);
+                showMessage('Successfully signed in with Google!', 'success');
+            } catch (error) {
+                console.error('Google sign in error:', error);
+                showMessage(error.message, 'danger');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Firebase Auth with Email/Password
+        document.getElementById('signInBtn').addEventListener('click', async () => {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            
+            if (!email || !password) {
+                showMessage('Please enter both email and password', 'danger');
+                return;
+            }
+
+            try {
+                showLoading();
+                await auth.signInWithEmailAndPassword(email, password);
+                showMessage('Successfully signed in!', 'success');
+            } catch (error) {
+                console.error('Sign in error:', error);
+                showMessage(error.message, 'danger');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        document.getElementById('signUpBtn').addEventListener('click', async () => {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            
+            if (!email || !password) {
+                showMessage('Please enter both email and password', 'danger');
+                return;
+            }
+
+            if (password.length < 6) {
+                showMessage('Password should be at least 6 characters', 'danger');
+                return;
+            }
+
+            try {
+                showLoading();
+                await auth.createUserWithEmailAndPassword(email, password);
+                showMessage('Account created successfully!', 'success');
+            } catch (error) {
+                console.error('Sign up error:', error);
+                showMessage(error.message, 'danger');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Firebase Auth State Listener
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = user;
+                navUserEmail.textContent = user.email;
+                document.getElementById('senderEmail').value = user.email;
+                authSection.classList.add('hidden');
+                appSection.classList.remove('hidden');
+                userInfo.classList.remove('hidden');
+                
+                // Register user with socket
+                socket.emit('register-user', { userEmail: user.email });
+                
+                // Load user contacts
+                loadUserContacts();
+                
+                // Check for pending request in URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const requestId = urlParams.get('request');
+                if (requestId) {
+                    checkPendingRequest(requestId);
+                }
+            } else {
+                currentUser = null;
+                authSection.classList.remove('hidden');
+                appSection.classList.add('hidden');
+                userInfo.classList.add('hidden');
+                // Clear URL parameters
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
+
+        // Sign out
+        signOutBtn.addEventListener('click', () => {
+            if (isInCall) {
+                endCall();
+            }
+            auth.signOut();
+        });
+
+        // Send direct email request
+        document.getElementById('sendEmailRequest').addEventListener('click', async () => {
+            const senderEmail = document.getElementById('senderEmail').value;
+            const receiverEmail = document.getElementById('receiverEmail').value;
+            
+            if (!receiverEmail) {
+                alert('Please enter receiver email');
+                return;
+            }
+
+            try {
+                showLoading();
+                const response = await fetch('/api/send-email-request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senderEmail, receiverEmail })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showNotification(result.message, 'success');
+                    document.getElementById('receiverEmail').value = ''; // Clear input
+                    
+                    // Show shareable link
+                    if (result.shareableLink) {
+                        const requestResult = document.getElementById('requestResult');
+                        document.getElementById('shareableLink').value = result.shareableLink;
+                        requestResult.classList.remove('hidden');
+                    }
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error sending email request:', error);
+                alert('Failed to send request');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Generate connection request (link only)
+        document.getElementById('generateRequest').addEventListener('click', async () => {
+            const senderEmail = document.getElementById('senderEmail').value;
+            const receiverEmail = document.getElementById('receiverEmail').value;
+            
+            if (!receiverEmail) {
+                alert('Please enter receiver email');
+                return;
+            }
+
+            try {
+                showLoading();
+                const response = await fetch('/api/generate-request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senderEmail, receiverEmail })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    const requestResult = document.getElementById('requestResult');
+                    document.getElementById('shareableLink').value = result.shareableLink;
+                    requestResult.classList.remove('hidden');
+                    document.getElementById('receiverEmail').value = ''; // Clear input
+                    showNotification('Connection link generated successfully!', 'success');
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error generating request:', error);
+                alert('Failed to generate request');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Copy link
+        document.getElementById('copyLink').addEventListener('click', () => {
+            const linkInput = document.getElementById('shareableLink');
+            linkInput.select();
+            navigator.clipboard.writeText(linkInput.value);
+            showNotification('Link copied to clipboard!', 'success');
+        });
+
+        // Check pending request
+        async function checkPendingRequest(requestId) {
+            try {
+                showLoading();
+                const response = await fetch(`/api/request/${requestId}`);
+                const result = await response.json();
+                
+                if (result.success && result.request.status === 'pending') {
+                    document.getElementById('requestSender').textContent = result.request.senderEmail;
+                    document.getElementById('pendingRequest').classList.remove('hidden');
+                    document.getElementById('noRequest').classList.add('hidden');
+                    
+                    // Store request ID for acceptance
+                    document.getElementById('acceptRequest').dataset.requestId = requestId;
+                    
+                    // Switch to connections tab
+                    document.getElementById('connections-tab').click();
+                    
+                    showNotification('Connection request found!', 'info');
+                } else {
+                    alert('Invalid or expired request');
+                    // Clear URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            } catch (error) {
+                console.error('Error checking request:', error);
+                alert('Failed to check request');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Accept connection request
+        document.getElementById('acceptRequest').addEventListener('click', async () => {
+            const requestId = document.getElementById('acceptRequest').dataset.requestId;
+            const receiverEmail = currentUser.email;
+            
+            try {
+                showLoading();
+                const response = await fetch('/api/accept-request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requestId, receiverEmail })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    currentConnectionId = result.connectionId;
+                    showNotification('Connection established!', 'success');
+                    
+                    // Start chat with the sender
+                    startChatWithUser(result.senderEmail);
+                    
+                    // Clear URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error accepting request:', error);
+                alert('Failed to accept request');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Reject request
+        document.getElementById('rejectRequest').addEventListener('click', () => {
+            document.getElementById('pendingRequest').classList.add('hidden');
+            document.getElementById('noRequest').classList.remove('hidden');
+            // Clear URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        });
+
+        // Load user contacts
+        async function loadUserContacts() {
+            try {
+                const response = await fetch(`/api/contacts/${currentUser.email}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateContactsList(result.contacts);
+                }
+            } catch (error) {
+                console.error('Error loading contacts:', error);
+            }
+        }
+
+        // Socket event listeners
+        socket.on('connect', () => {
+            console.log('✅ Connected to server');
+            document.getElementById('connectionStatus').className = 'badge bg-success ms-2';
+            document.getElementById('connectionStatus').textContent = 'Connected';
+            
+            // Re-register user if already logged in
+            if (currentUser) {
+                socket.emit('register-user', { userEmail: currentUser.email });
+            }
+        });
+
+        socket.on('disconnect', () => {
+            console.log('❌ Disconnected from server');
+            document.getElementById('connectionStatus').className = 'badge bg-danger ms-2';
+            document.getElementById('connectionStatus').textContent = 'Disconnected';
+        });
+
+        // When sender receives notification that receiver accepted
+        socket.on('request-accepted', (data) => {
+            console.log('✅ Request accepted:', data);
+            currentConnectionId = data.connectionId;
+            showNotification(`${data.receiverEmail} accepted your connection request!`, 'success');
+            
+            // Start chat with the receiver
+            startChatWithUser(data.receiverEmail);
+        });
+
+        // When connection is established
+        socket.on('connection-established', (data) => {
+            console.log('✅ Connection established:', data);
+            currentConnectionId = data.connectionId;
+            showNotification(data.message, 'success');
+        });
+
+        // When contacts list is updated
+        socket.on('contacts-updated', (contacts) => {
+            updateContactsList(contacts);
+        });
+
+        // When user status changes
+        socket.on('user-status-changed', (data) => {
+            // Update the specific contact's status
+            const updatedContacts = userContacts.map(contact => 
+                contact.email === data.email ? 
+                { ...contact, isOnline: data.isOnline, lastSeen: data.lastSeen || contact.lastSeen } : 
+                contact
+            );
+            updateContactsList(updatedContacts);
+            
+            if (data.email === currentChatUser) {
+                const status = data.isOnline ? 'online' : 'offline';
+                showNotification(`${data.email} is now ${status}`, 'info');
+            }
+        });
+
+        // Handle received messages
+        socket.on('receive-message', (data) => {
+            if (data.senderEmail !== currentUser.email) {
+                displayMessage(data.senderEmail, data.message, true);
+            }
+        });
+
+        // Handle message sent confirmation
+        socket.on('message-sent', (data) => {
+            displayMessage(currentUser.email, data.message, false);
+        });
+
+        socket.on('user-joined', (data) => {
+            displaySystemMessage(`${data.userEmail} joined the chat`);
+            showNotification(`${data.userEmail} joined the chat`, 'info');
+        });
+
+        socket.on('user-left', (data) => {
+            displaySystemMessage(`${data.userEmail} left the chat`);
+            showNotification(`${data.userEmail} left the chat`, 'warning');
+        });
+
+        // Incoming call notification
+        socket.on('incoming-call', (data) => {
+            console.log('📞 Incoming call:', data);
+            showCallNotification(data.from, data.callType);
+            
+            // Store call data for answering
+            window.incomingCallData = data;
+        });
+
+        // Call initiated confirmation
+        socket.on('call-initiated', (data) => {
+            console.log('✅ Call initiated:', data);
+            showNotification(`Calling ${data.to}...`, 'info');
+        });
+
+        // Call error
+        socket.on('call-error', (data) => {
+            console.error('❌ Call error:', data);
+            showNotification(data.message, 'danger');
+        });
+
+        socket.on('call-answered', async (data) => {
+            console.log('✅ Call answered:', data);
+            showNotification('Call connected!', 'success');
+        });
+
+        socket.on('ice-candidate', async (data) => {
+            console.log('❄️ ICE candidate received');
+            if (peerConnection) {
+                await peerConnection.addIceCandidate(data.candidate);
+            }
+        });
+
+        // FIXED: Handle call ended - prevent duplicate notifications
+        socket.on('call-ended', (data) => {
+            console.log('📞 Call ended received from server');
+            if (isInCall) {
+                endCall();
+                showNotification('Call ended by ' + (data.from || 'other user'), 'info');
+            }
+        });
+
+        socket.on('error', (data) => {
+            console.error('Socket error:', data);
+            showNotification('Connection error: ' + data.message, 'danger');
+        });
+
+        // Send message - FIXED: Check for currentChatUser instead of connectionId
+        document.getElementById('sendMessage').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (message && currentChatUser && currentConnectionId) {
+                socket.emit('send-message', {
+                    connectionId: currentConnectionId,
+                    message,
+                    senderEmail: currentUser.email
+                });
+                
+                // Clear input immediately, message will appear via 'message-sent' event
+                messageInput.value = '';
+            } else {
+                showNotification('Please select a contact to chat with', 'warning');
+            }
+        }
+
+        function displayMessage(sender, message, isOther) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isOther ? 'other-message' : 'own-message'}`;
+            
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            messageDiv.innerHTML = `
+                <div class="fw-semibold small">${sender}</div>
+                <div class="message-content">${message}</div>
+                <div class="text-end small opacity-75">${time}</div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function displaySystemMessage(message) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'system-message';
+            messageDiv.textContent = message;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function loadChatHistory(connId) {
+            try {
+                const response = await fetch(`/api/chat/${connId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Clear existing messages
+                    document.getElementById('chatMessages').innerHTML = '';
+                    
+                    result.messages.forEach(msg => {
+                        displayMessage(
+                            msg.senderEmail, 
+                            msg.message, 
+                            msg.senderEmail !== currentUser.email
+                        );
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading chat history:', error);
+            }
+        }
+
+        // WebRTC Functions
+        function setupPeerConnection() {
+            peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            });
+            
+            // Add local stream
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+            }
+            
+            // Handle remote stream
+            peerConnection.ontrack = (event) => {
+                console.log('📹 Remote stream received');
+                document.getElementById('remoteVideo').srcObject = event.streams[0];
+            };
+            
+            // Handle ICE candidates
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate && currentChatUser) {
+                    socket.emit('ice-candidate', {
+                        candidate: event.candidate,
+                        toUser: currentChatUser
+                    });
+                }
+            };
+        }
+
+        // Answer incoming call
+        async function answerIncomingCall() {
+            if (!window.incomingCallData) return;
+            
+            try {
+                showLoading();
+                const data = window.incomingCallData;
+                currentCallType = data.callType;
+                currentChatUser = data.from;
+                
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: data.callType === 'video',
+                    audio: true
+                });
+                
+                if (data.callType === 'video') {
+                    document.getElementById('localVideo').srcObject = localStream;
+                }
+                
+                setupPeerConnection();
+                
+                socket.emit('answer-call', {
+                    connectionId: data.connectionId,
+                    toUser: data.from
+                });
+                
+                showCallInterface(data.callType === 'video');
+                hideLoading();
+                showNotification('Call answered!', 'success');
+                isInCall = true;
+                
+                // Clear incoming call data
+                window.incomingCallData = null;
+            } catch (error) {
+                console.error('Error answering call:', error);
+                showNotification('Failed to answer call: ' + error.message, 'danger');
+                hideLoading();
+            }
+        }
+
+        // Decline incoming call
+        function declineIncomingCall() {
+            if (window.incomingCallData) {
+                socket.emit('end-call', {
+                    toUser: window.incomingCallData.from,
+                    connectionId: window.incomingCallData.connectionId
+                });
+                showNotification('Call declined', 'info');
+                window.incomingCallData = null;
+            }
+        }
+
+        function showCallInterface(isVideo) {
+            document.getElementById('chat').classList.add('hidden');
+            document.getElementById('callSection').classList.remove('hidden');
+            document.getElementById('endCall').classList.remove('hidden');
+            
+            if (!isVideo) {
+                document.getElementById('localVideo').classList.add('hidden');
+            } else {
+                document.getElementById('localVideo').classList.remove('hidden');
+            }
+        }
+
+        // Call buttons in chat section
+        document.getElementById('startVoiceCall').addEventListener('click', () => {
+            if (currentChatUser) {
+                startCallWithUser(currentChatUser, false);
+            } else {
+                showNotification('Please select a contact to call', 'warning');
+            }
+        });
+
+        document.getElementById('startVideoCall').addEventListener('click', () => {
+            if (currentChatUser) {
+                startCallWithUser(currentChatUser, true);
+            } else {
+                showNotification('Please select a contact to call', 'warning');
+            }
+        });
+
+        document.getElementById('endCallBtn').addEventListener('click', endCall);
+        document.getElementById('endCall').addEventListener('click', endCall);
+
+        function endCall() {
+            console.log('📞 Ending call...');
+            
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
+            if (currentChatUser) {
+                socket.emit('end-call', { 
+                    toUser: currentChatUser,
+                    connectionId: currentConnectionId
+                });
+            }
+            
+            document.getElementById('callSection').classList.add('hidden');
+            document.getElementById('chat').classList.remove('hidden');
+            document.getElementById('endCall').classList.add('hidden');
+            
+            document.getElementById('localVideo').srcObject = null;
+            document.getElementById('remoteVideo').srcObject = null;
+            
+            // Reset video elements
+            document.getElementById('localVideo').classList.remove('hidden');
+            
+            // Clear incoming call data
+            window.incomingCallData = null;
+            isInCall = false;
+            
+            console.log('📞 Call ended successfully');
+        }
+
+        // Call controls
+        document.getElementById('muteAudio').addEventListener('click', function() {
+            if (localStream) {
+                const audioTracks = localStream.getAudioTracks();
+                let isMuted = false;
+                audioTracks.forEach(track => {
+                    track.enabled = !track.enabled;
+                    isMuted = !track.enabled;
+                });
+                this.classList.toggle('btn-danger', isMuted);
+                this.classList.toggle('btn-warning', !isMuted);
+                this.innerHTML = isMuted ? '<i class="fas fa-microphone-slash"></i>' : '<i class="fas fa-microphone"></i>';
+            }
+        });
+
+        document.getElementById('muteVideo').addEventListener('click', function() {
+            if (localStream) {
+                const videoTracks = localStream.getVideoTracks();
+                let isMuted = false;
+                videoTracks.forEach(track => {
+                    track.enabled = !track.enabled;
+                    isMuted = !track.enabled;
+                });
+                this.classList.toggle('btn-danger', isMuted);
+                this.classList.toggle('btn-warning', !isMuted);
+                this.innerHTML = isMuted ? '<i class="fas fa-video-slash"></i>' : '<i class="fas fa-video"></i>';
+            }
+        });
+
+        console.log('🚀 Echo Connect App Loaded');
     </script>
 </body>
 </html>
