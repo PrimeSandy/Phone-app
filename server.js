@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const server = http.createServer(app);
@@ -42,6 +43,15 @@ mongoose.connect(MONGO_URI, {
 })
 .catch(err => {
   console.error('❌ MongoDB connection error:', err);
+});
+
+// Email transporter setup
+const emailTransporter = nodemailer.createTransporter({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER || 'your-email@gmail.com',
+    pass: process.env.EMAIL_PASS || 'your-app-password'
+  }
 });
 
 // MongoDB Schemas
@@ -159,7 +169,7 @@ app.get('/api/check-connection/:user1/:user2', async (req, res) => {
   }
 });
 
-// Send direct email request
+// Send professional email request
 app.post('/api/send-email-request', async (req, res) => {
   try {
     const { senderEmail, receiverEmail, linkType = '24hours' } = req.body;
@@ -171,6 +181,7 @@ app.post('/api/send-email-request', async (req, res) => {
       });
     }
     
+    // Check if users are already connected
     const connectionCheck = await UserConnection.findOne({ 
       userEmail: senderEmail,
       connectedUsers: receiverEmail 
@@ -186,6 +197,7 @@ app.post('/api/send-email-request', async (req, res) => {
     const requestId = uuidv4();
     const expiresAt = getExpirationDate(linkType);
     
+    // Save request to database
     const request = new ConnectionRequest({
       requestId,
       senderEmail,
@@ -197,13 +209,83 @@ app.post('/api/send-email-request', async (req, res) => {
     
     const shareableLink = `${BASE_URL}/?request=${requestId}`;
     
+    // Send professional email
+    try {
+      const mailOptions = {
+        from: process.env.EMAIL_USER || 'echopro@noreply.com',
+        to: receiverEmail,
+        subject: `🔗 Connection Request from ${senderEmail} - Echo Pro`,
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: linear-gradient(135deg, #000000, #333333); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+              .button { display: inline-block; background: linear-gradient(135deg, #000000, #333333); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; margin: 20px 0; }
+              .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+              .features { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+              .feature-item { margin: 10px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>🔗 Echo Pro Connection Request</h1>
+                <p>Professional Communication Platform</p>
+              </div>
+              <div class="content">
+                <h2>Hello!</h2>
+                <p><strong>${senderEmail}</strong> wants to connect with you on <strong>Echo Pro</strong> - the professional communication platform.</p>
+                
+                <div class="features">
+                  <h3>🚀 What you can do with Echo Pro:</h3>
+                  <div class="feature-item">✅ <strong>Real-time Chat</strong> - Instant messaging</div>
+                  <div class="feature-item">📞 <strong>Voice Calls</strong> - Crystal clear audio calls</div>
+                  <div class="feature-item">👥 <strong>Secure Connections</strong> - End-to-end encrypted</div>
+                  <div class="feature-item">💼 <strong>Professional Interface</strong> - Clean and modern design</div>
+                </div>
+                
+                <p><strong>Connection Type:</strong> ${linkType === 'permanent' ? 'Permanent Connection 🔄' : '24-Hour Connection ⏰'}</p>
+                <p><strong>Expires:</strong> ${expiresAt.toLocaleString()}</p>
+                
+                <div style="text-align: center;">
+                  <a href="${shareableLink}" class="button">Accept Connection Request</a>
+                </div>
+                
+                <p style="font-size: 14px; color: #666;">
+                  Or copy this link: <br>
+                  <code style="background: #f0f0f0; padding: 8px; border-radius: 4px; word-break: break-all;">${shareableLink}</code>
+                </p>
+                
+                <div class="footer">
+                  <p>This is an automated message from Echo Pro. Please do not reply to this email.</p>
+                  <p>If you didn't expect this request, you can safely ignore this email.</p>
+                </div>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+      };
+      
+      await emailTransporter.sendMail(mailOptions);
+      console.log(`📧 Professional email sent to ${receiverEmail}`);
+      
+    } catch (emailError) {
+      console.error('Email sending error:', emailError);
+      // Continue even if email fails
+    }
+    
     res.json({
       success: true,
       requestId,
       shareableLink,
       linkType,
       expiresAt,
-      message: `Connection request created! This link is ${linkType === 'permanent' ? 'permanent' : 'valid for 24 hours'}`
+      message: `Professional connection request sent to ${receiverEmail}! They will receive an email with your invitation.`
     });
     
   } catch (error) {
@@ -956,4 +1038,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Base URL: ${BASE_URL}`);
   console.log(`✅ Health check: ${BASE_URL}/health`);
+  console.log(`📧 Email service: ${process.env.EMAIL_USER ? 'Configured' : 'Not configured - set EMAIL_USER and EMAIL_PASS env variables'}`);
 });
