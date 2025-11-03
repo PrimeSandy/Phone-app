@@ -78,7 +78,7 @@ const userConnectionSchema = new mongoose.Schema({
 const callHistorySchema = new mongoose.Schema({
   connectionId: String,
   participants: [String],
-  callType: String,
+  callType: { type: String, default: 'voice' },
   startedAt: Date,
   endedAt: Date,
   duration: Number,
@@ -671,7 +671,7 @@ io.on('connection', (socket) => {
 
   // Handle call initiation
   socket.on('start-call', async (data) => {
-    const { userEmail, otherUserEmail, callType, connectionId } = data;
+    const { userEmail, otherUserEmail, connectionId } = data;
     
     console.log(`📞 Call attempt from ${userEmail} to ${otherUserEmail}`);
     
@@ -679,7 +679,7 @@ io.on('connection', (socket) => {
     const callHistory = new CallHistory({
       connectionId,
       participants: [userEmail, otherUserEmail],
-      callType,
+      callType: 'voice',
       startedAt: new Date(),
       status: 'initiated'
     });
@@ -689,7 +689,7 @@ io.on('connection', (socket) => {
       callId: callHistory._id,
       startedAt: new Date(),
       participants: [userEmail, otherUserEmail],
-      callType,
+      callType: 'voice',
       caller: userEmail
     });
     
@@ -707,7 +707,7 @@ io.on('connection', (socket) => {
     // Send call to the other user
     io.to(otherUserSocketId).emit('incoming-call', {
       from: userEmail,
-      callType: callType || 'video',
+      callType: 'voice',
       connectionId,
       callId: callHistory._id,
       timestamp: new Date()
