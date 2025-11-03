@@ -1,213 +1,526 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Echo - Real-Time Connect</title>
+    <title>Echo Pro - Professional Communication</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary-color: #6366f1;
-            --secondary-color: #8b5cf6;
-            --success-color: #10b981;
+            --primary-dark: #4f46e5;
+            --primary-light: #8b5cf6;
+            --secondary-color: #10b981;
+            --secondary-dark: #059669;
+            --accent-color: #f59e0b;
             --danger-color: #ef4444;
             --warning-color: #f59e0b;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+            --gray-color: #6b7280;
+            --success-color: #10b981;
+        }
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
         }
         
         .hidden { display: none !important; }
+        
+        /* Glass morphism effect */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.1) !important;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 10px;
+        }
+        
+        /* Chat styles */
         .chat-container { 
             height: 400px; 
             overflow-y: auto; 
-            border: 1px solid #e5e7eb; 
             padding: 15px;
-            border-radius: 10px;
-            background: #fafafa;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.05);
         }
+        
         .message { 
             margin-bottom: 12px; 
-            padding: 10px 15px; 
-            border-radius: 15px; 
+            padding: 12px 16px; 
+            border-radius: 18px; 
             max-width: 80%;
             word-wrap: break-word;
+            animation: messageSlide 0.3s ease-out;
         }
+        
+        @keyframes messageSlide {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
         .own-message { 
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
             color: white; 
             margin-left: auto;
             margin-right: 10px;
-            border-bottom-right-radius: 5px;
+            border-bottom-right-radius: 6px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
         }
+        
         .other-message { 
-            background-color: white; 
-            color: #374151; 
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--dark-color); 
             margin-right: auto;
             margin-left: 10px;
-            border: 1px solid #e5e7eb;
-            border-bottom-left-radius: 5px;
+            border-bottom-left-radius: 6px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
+        
         .system-message {
-            background-color: #f3f4f6;
-            color: #6b7280;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
             text-align: center;
             margin: 10px auto;
-            padding: 8px 15px;
+            padding: 8px 16px;
             border-radius: 20px;
-            font-size: 0.9em;
-            max-width: 60%;
+            font-size: 0.85em;
+            max-width: 70%;
+            backdrop-filter: blur(10px);
         }
+        
+        /* Video call styles */
         .video-container { 
             position: relative; 
             width: 100%; 
-            height: 400px; 
-            background: #1f2937;
-            border-radius: 10px;
+            height: 500px; 
+            background: var(--dark-color);
+            border-radius: 16px;
             overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
         }
+        
         #localVideo, #remoteVideo { 
             width: 100%; 
             height: 100%; 
             object-fit: cover; 
         }
+        
         #localVideo { 
             position: absolute; 
             top: 20px; 
             right: 20px; 
-            width: 200px; 
-            height: 150px; 
+            width: 220px; 
+            height: 165px; 
             z-index: 10;
-            border: 2px solid white;
-            border-radius: 10px;
+            border: 3px solid rgba(255, 255, 255, 0.8);
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
         }
+        
         .call-controls { 
             position: absolute; 
-            bottom: 20px; 
+            bottom: 30px; 
             left: 50%; 
             transform: translateX(-50%); 
             z-index: 10;
-            background: rgba(0,0,0,0.7);
-            padding: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
             border-radius: 50px;
+            backdrop-filter: blur(10px);
         }
+        
         .btn-call {
-            width: 60px;
-            height: 60px;
+            width: 70px;
+            height: 70px;
             border-radius: 50%;
-            margin: 0 10px;
+            margin: 0 12px;
             border: none;
-            font-size: 1.2em;
+            font-size: 1.3em;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
+        
+        .btn-call:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn-call:active {
+            transform: translateY(0);
+        }
+        
+        /* Connection cards */
         .connection-card {
             border-left: 4px solid var(--primary-color);
+            transition: all 0.3s ease;
         }
-        .gradient-bg {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        
+        .connection-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
+        
+        /* Navigation */
         .navbar-brand {
             font-weight: 700;
-            font-size: 1.5em;
+            font-size: 1.6em;
+            background: linear-gradient(135deg, #fff, #e0e7ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        .google-btn {
-            background: white;
-            color: #757575;
-            border: 1px solid #dadce0;
+        
+        /* Buttons */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            border: none;
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
         }
-        .google-btn:hover {
-            background: #f8f9fa;
-            border-color: #dadce0;
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
         }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--secondary-color), #34d399);
+            border: none;
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger-color), #f87171);
+            border: none;
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+        }
+        
+        /* Notifications */
         .notification {
             position: fixed;
             top: 20px;
             right: 20px;
             z-index: 1000;
-            min-width: 300px;
+            min-width: 320px;
         }
+        
         .call-notification {
-            background: white;
-            border: 2px solid var(--primary-color);
-            border-radius: 10px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            animation: notificationSlide 0.5s ease-out;
         }
+        
+        @keyframes notificationSlide {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        /* Contacts */
         .contact-item {
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 10px;
             transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
         }
+        
         .contact-item:hover {
-            background-color: #f8f9fa;
+            background: rgba(255, 255, 255, 0.1);
             border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
         }
+        
         .contact-online {
             border-left: 4px solid var(--success-color);
         }
+        
         .contact-offline {
-            border-left: 4px solid #6b7280;
+            border-left: 4px solid var(--gray-color);
         }
+        
         .online-indicator {
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             display: inline-block;
-            margin-right: 8px;
+            margin-right: 10px;
+            box-shadow: 0 0 10px currentColor;
         }
+        
         .online {
             background-color: var(--success-color);
+            animation: pulse 2s infinite;
         }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        
         .offline {
-            background-color: #6b7280;
+            background-color: var(--gray-color);
         }
-        .tab-content {
-            min-height: 200px;
+        
+        /* Tabs */
+        .nav-pills .nav-link {
+            border-radius: 12px;
+            padding: 12px 20px;
+            margin: 0 5px;
+            color: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
         }
-        .request-options {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 15px;
+        
+        .nav-pills .nav-link.active {
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--primary-color);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
         }
+        
+        .nav-pills .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+        
+        /* Active chat user */
         .active-chat-user {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
             color: white;
-            padding: 10px 15px;
-            border-radius: 10px;
-            margin-bottom: 15px;
+            padding: 15px 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
         }
+        
         .chat-user-info {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
+        
         .online-status {
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             background-color: var(--success-color);
+            box-shadow: 0 0 10px var(--success-color);
+            animation: pulse 2s infinite;
         }
+        
         .offline-status {
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            background-color: #6b7280;
+            background-color: var(--gray-color);
         }
+        
         .call-status {
             font-size: 0.9em;
             margin-left: 10px;
+            padding: 4px 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            font-weight: 500;
+        }
+        
+        /* Call duration */
+        .call-duration {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 1.1em;
+            font-weight: 600;
+            z-index: 20;
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Connection type badges */
+        .connection-badge {
+            font-size: 0.75em;
+            padding: 4px 8px;
+            border-radius: 12px;
+            margin-left: 8px;
+        }
+        
+        .badge-permanent {
+            background: linear-gradient(135deg, var(--success-color), #34d399);
+        }
+        
+        .badge-temporary {
+            background: linear-gradient(135deg, var(--accent-color), #fbbf24);
+        }
+        
+        /* History section */
+        .history-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--primary-color);
+            transition: all 0.3s ease;
+        }
+        
+        .history-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+        
+        /* Loading spinner */
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .video-container {
+                height: 400px;
+            }
+            
+            #localVideo {
+                width: 150px;
+                height: 112px;
+            }
+            
+            .btn-call {
+                width: 60px;
+                height: 60px;
+                margin: 0 8px;
+            }
+            
+            .call-controls {
+                padding: 15px;
+            }
+        }
+        
+        /* Input styles */
+        .form-control {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: white;
+            padding: 12px 16px;
+        }
+        
+        .form-control:focus {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+            color: white;
+        }
+        
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        /* Link type selector */
+        .link-type-selector {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .form-check-input:checked {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
         }
     </style>
 </head>
-<body class="bg-light">
+<body>
     <!-- Navigation -->
-    <nav class="navbar navbar-dark gradient-bg shadow">
+    <nav class="navbar navbar-expand-lg glass-nav">
         <div class="container">
             <span class="navbar-brand">
-                <i class="fas fa-comments me-2"></i>Echo Connect
+                <i class="fas fa-comments me-2"></i>Echo Pro
             </span>
             <div id="userInfo" class="hidden">
-                <span class="navbar-text me-3" id="navUserEmail"></span>
+                <span class="navbar-text me-3 text-white" id="navUserEmail"></span>
                 <button id="signOut" class="btn btn-outline-light btn-sm">
                     <i class="fas fa-sign-out-alt me-1"></i>Sign Out
                 </button>
@@ -222,24 +535,26 @@
         <!-- Firebase Auth Section -->
         <div id="authSection" class="row justify-content-center">
             <div class="col-md-6 col-lg-5">
-                <div class="card shadow border-0">
-                    <div class="card-body p-5">
+                <div class="card glass-card border-0">
+                    <div class="card-body p-5 text-white">
                         <div class="text-center mb-4">
-                            <i class="fas fa-comments fa-3x gradient-text mb-3" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
-                            <h2 class="card-title">Welcome to Echo</h2>
-                            <p class="text-muted">Real-time chat and video calls</p>
+                            <div class="mb-3">
+                                <i class="fas fa-comments fa-4x" style="background: linear-gradient(135deg, #fff, #e0e7ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+                            </div>
+                            <h2 class="card-title fw-bold">Welcome to Echo Pro</h2>
+                            <p class="text-light">Professional real-time communication</p>
                         </div>
                         
                         <!-- Google Sign In Button -->
                         <div class="d-grid gap-2 mb-4">
-                            <button id="googleSignIn" class="btn google-btn btn-lg">
+                            <button id="googleSignIn" class="btn btn-light btn-lg fw-medium">
                                 <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" style="width: 20px; height: 20px; margin-right: 10px;">
                                 Continue with Google
                             </button>
                         </div>
 
                         <div class="divider d-flex align-items-center my-4">
-                            <p class="text-center text-muted mx-3 mb-0">Or</p>
+                            <p class="text-center text-light mx-3 mb-0">Or</p>
                         </div>
                         
                         <!-- Email/Password Auth -->
@@ -250,10 +565,10 @@
                             <input type="password" id="authPassword" class="form-control form-control-lg" placeholder="Enter your password">
                         </div>
                         <div class="d-grid gap-2 mb-3">
-                            <button id="signInBtn" class="btn btn-primary btn-lg">
+                            <button id="signInBtn" class="btn btn-primary btn-lg fw-medium">
                                 <i class="fas fa-sign-in-alt me-2"></i>Sign In
                             </button>
-                            <button id="signUpBtn" class="btn btn-outline-primary btn-lg">
+                            <button id="signUpBtn" class="btn btn-outline-light btn-lg fw-medium">
                                 <i class="fas fa-user-plus me-2"></i>Sign Up
                             </button>
                         </div>
@@ -282,6 +597,11 @@
                         <i class="fas fa-comments me-2"></i>Chat
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">
+                        <i class="fas fa-history me-2"></i>History
+                    </button>
+                </li>
             </ul>
 
             <!-- Tab Content -->
@@ -290,13 +610,13 @@
                 <div class="tab-pane fade show active" id="connections" role="tabpanel">
                     <div class="row">
                         <div class="col-md-6 mb-4">
-                            <div class="card connection-card shadow h-100">
-                                <div class="card-header bg-white">
-                                    <h5 class="card-title mb-0">
+                            <div class="card glass-card connection-card h-100">
+                                <div class="card-header bg-transparent border-bottom-0">
+                                    <h5 class="card-title mb-0 text-white">
                                         <i class="fas fa-plus-circle me-2"></i>Create New Connection
                                     </h5>
                                 </div>
-                                <div class="card-body">
+                                <div class="card-body text-white">
                                     <div class="mb-3">
                                         <label class="form-label fw-semibold">Your Email</label>
                                         <input type="email" id="senderEmail" class="form-control" readonly>
@@ -304,6 +624,23 @@
                                     <div class="mb-3">
                                         <label class="form-label fw-semibold">Receiver's Email</label>
                                         <input type="email" id="receiverEmail" class="form-control" placeholder="Enter receiver's email">
+                                    </div>
+                                    
+                                    <!-- Link Type Selection -->
+                                    <div class="link-type-selector">
+                                        <h6 class="fw-semibold mb-3">Connection Type:</h6>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="radio" name="linkType" id="linkType24" value="24hours" checked>
+                                            <label class="form-check-label" for="linkType24">
+                                                24-Hour Connection <small class="text-muted">(Expires after 24 hours)</small>
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="linkType" id="linkTypePermanent" value="permanent">
+                                            <label class="form-check-label" for="linkTypePermanent">
+                                                Permanent Connection <small class="text-muted">(Never expires)</small>
+                                            </label>
+                                        </div>
                                     </div>
                                     
                                     <div class="request-options">
@@ -318,7 +655,7 @@
                                         </div>
                                     </div>
                                     
-                                    <div id="requestResult" class="mt-4 p-3 bg-light rounded hidden">
+                                    <div id="requestResult" class="mt-4 p-3 bg-light rounded hidden text-dark">
                                         <h6 class="fw-semibold">Share this link:</h6>
                                         <div class="input-group">
                                             <input type="text" id="shareableLink" class="form-control" readonly>
@@ -326,8 +663,8 @@
                                                 <i class="fas fa-copy"></i>
                                             </button>
                                         </div>
-                                        <small class="text-muted mt-2 d-block">
-                                            This link will expire in 24 hours. Send it to your friend to start chatting.
+                                        <small class="text-muted mt-2 d-block" id="linkExpiryInfo">
+                                            <!-- Expiry info will be inserted here -->
                                         </small>
                                     </div>
                                 </div>
@@ -335,17 +672,18 @@
                         </div>
                         
                         <div class="col-md-6 mb-4">
-                            <div class="card connection-card shadow h-100">
-                                <div class="card-header bg-white">
-                                    <h5 class="card-title mb-0">
+                            <div class="card glass-card connection-card h-100">
+                                <div class="card-header bg-transparent border-bottom-0">
+                                    <h5 class="card-title mb-0 text-white">
                                         <i class="fas fa-user-check me-2"></i>Join Connection
                                     </h5>
                                 </div>
-                                <div class="card-body">
+                                <div class="card-body text-white">
                                     <div id="pendingRequest" class="hidden">
                                         <div class="alert alert-info">
                                             <h6>Connection Request</h6>
                                             <p class="mb-2">From: <strong id="requestSender"></strong></p>
+                                            <p class="mb-2" id="requestTypeInfo"></p>
                                             <div class="d-grid gap-2">
                                                 <button id="acceptRequest" class="btn btn-success">
                                                     <i class="fas fa-check me-2"></i>Accept Request
@@ -357,9 +695,9 @@
                                         </div>
                                     </div>
                                     <div id="noRequest" class="text-center py-4">
-                                        <i class="fas fa-envelope-open-text fa-2x text-muted mb-3"></i>
-                                        <p class="text-muted">Waiting for connection request...</p>
-                                        <small class="text-muted">When someone shares a link with you, it will appear here</small>
+                                        <i class="fas fa-envelope-open-text fa-2x text-light mb-3 opacity-50"></i>
+                                        <p class="text-light">Waiting for connection request...</p>
+                                        <small class="text-light opacity-75">When someone shares a link with you, it will appear here</small>
                                     </div>
                                 </div>
                             </div>
@@ -369,18 +707,18 @@
 
                 <!-- Contacts Tab -->
                 <div class="tab-pane fade" id="contacts" role="tabpanel">
-                    <div class="card shadow">
-                        <div class="card-header bg-white">
-                            <h5 class="card-title mb-0">
+                    <div class="card glass-card">
+                        <div class="card-header bg-transparent border-bottom-0">
+                            <h5 class="card-title mb-0 text-white">
                                 <i class="fas fa-users me-2"></i>My Contacts
                             </h5>
                         </div>
                         <div class="card-body">
                             <div id="contactsList" class="contacts-container">
-                                <div class="text-center py-4">
-                                    <i class="fas fa-users fa-2x text-muted mb-3"></i>
-                                    <p class="text-muted">No contacts yet</p>
-                                    <small class="text-muted">Connect with people to see them here</small>
+                                <div class="text-center py-4 text-white">
+                                    <i class="fas fa-users fa-2x mb-3 opacity-50"></i>
+                                    <p class="text-light">No contacts yet</p>
+                                    <small class="text-light opacity-75">Connect with people to see them here</small>
                                 </div>
                             </div>
                         </div>
@@ -391,22 +729,22 @@
                 <div class="tab-pane fade" id="chat" role="tabpanel">
                     <div class="row">
                         <div class="col-12">
-                            <div class="card shadow">
-                                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                                    <h5 class="card-title mb-0">
+                            <div class="card glass-card">
+                                <div class="card-header bg-transparent border-bottom-0 d-flex justify-content-between align-items-center">
+                                    <h5 class="card-title mb-0 text-white">
                                         <i class="fas fa-comments me-2"></i>Chat
                                         <span id="connectionStatus" class="badge bg-success ms-2">Connected</span>
                                     </h5>
                                     <div id="chatControls" class="hidden">
                                         <div class="d-flex align-items-center">
                                             <div class="chat-user-info me-3">
-                                                <span id="chatWithUser"></span>
+                                                <span id="chatWithUser" class="text-white"></span>
                                                 <span id="chatUserStatus" class="online-status"></span>
                                             </div>
-                                            <button id="startVoiceCall" class="btn btn-success btn-sm me-2">
+                                            <button id="startVoiceCall" class="btn btn-success btn-sm me-2 call-btn">
                                                 <i class="fas fa-phone me-1"></i>Voice Call
                                             </button>
-                                            <button id="startVideoCall" class="btn btn-info btn-sm me-2">
+                                            <button id="startVideoCall" class="btn btn-primary btn-sm me-2 call-btn">
                                                 <i class="fas fa-video me-1"></i>Video Call
                                             </button>
                                             <button id="endCall" class="btn btn-danger btn-sm hidden">
@@ -415,11 +753,11 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="card-body">
+                                <div class="card-body text-white">
                                     <div id="noActiveChat" class="text-center py-4">
-                                        <i class="fas fa-comments fa-2x text-muted mb-3"></i>
-                                        <p class="text-muted">No active chat</p>
-                                        <small class="text-muted">Select a contact from Contacts tab to start chatting</small>
+                                        <i class="fas fa-comments fa-2x mb-3 opacity-50"></i>
+                                        <p class="text-light">No active chat</p>
+                                        <small class="text-light opacity-75">Select a contact from Contacts tab to start chatting</small>
                                     </div>
                                     <div id="chatSection" class="hidden">
                                         <div id="activeChatUser" class="active-chat-user hidden">
@@ -442,15 +780,55 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- History Tab -->
+                <div class="tab-pane fade" id="history" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <div class="card glass-card">
+                                <div class="card-header bg-transparent border-bottom-0">
+                                    <h5 class="card-title mb-0 text-white">
+                                        <i class="fas fa-phone me-2"></i>Call History
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="callHistoryList">
+                                        <div class="text-center py-4 text-white">
+                                            <i class="fas fa-history fa-2x mb-3 opacity-50"></i>
+                                            <p class="text-light">No call history yet</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <div class="card glass-card">
+                                <div class="card-header bg-transparent border-bottom-0">
+                                    <h5 class="card-title mb-0 text-white">
+                                        <i class="fas fa-link me-2"></i>Connection History
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="connectionHistoryList">
+                                        <div class="text-center py-4 text-white">
+                                            <i class="fas fa-users fa-2x mb-3 opacity-50"></i>
+                                            <p class="text-light">No connection history yet</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Call Section -->
             <div id="callSection" class="hidden">
                 <div class="row">
                     <div class="col-12">
-                        <div class="card shadow">
-                            <div class="card-header bg-white">
-                                <h5 class="card-title mb-0">
+                        <div class="card glass-card">
+                            <div class="card-header bg-transparent border-bottom-0">
+                                <h5 class="card-title mb-0 text-white">
                                     <i class="fas fa-phone me-2"></i>Call in Progress
                                     <span class="badge bg-info ms-2" id="callTypeBadge">Voice Call</span>
                                     <span class="badge bg-success ms-2" id="callStatusBadge">Connected</span>
@@ -458,6 +836,7 @@
                             </div>
                             <div class="card-body p-0">
                                 <div class="video-container">
+                                    <div id="callDuration" class="call-duration hidden">00:00</div>
                                     <video id="localVideo" autoplay muted playsinline></video>
                                     <video id="remoteVideo" autoplay playsinline></video>
                                     <div class="call-controls">
@@ -482,9 +861,7 @@
 
     <!-- Loading Spinner -->
     <div id="loadingSpinner" class="hidden position-fixed top-50 start-50 translate-middle">
-        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
+        <div class="loading-spinner"></div>
     </div>
 
     <!-- Firebase and Socket.io -->
@@ -534,13 +911,20 @@
         let userContacts = [];
         let isInCall = false;
         let chatHistoryLoaded = false;
+        let currentCallId = null;
+        let callStartTime = null;
+        let callDurationInterval = null;
+        let currentCallLinkType = '24hours';
 
         // Show notification
         function showNotification(message, type = 'info', duration = 5000) {
             const notification = document.createElement('div');
             notification.className = `alert alert-${type} alert-dismissible fade show`;
             notification.innerHTML = `
-                ${message}
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-${getNotificationIcon(type)} me-2"></i>
+                    <div>${message}</div>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
             notifications.appendChild(notification);
@@ -552,20 +936,35 @@
             }, duration);
         }
 
-        // Show call notification
-        function showCallNotification(from, callType) {
+        function getNotificationIcon(type) {
+            const icons = {
+                info: 'info-circle',
+                success: 'check-circle',
+                warning: 'exclamation-triangle',
+                danger: 'times-circle'
+            };
+            return icons[type] || 'info-circle';
+        }
+
+        // Show call notification with manual answer
+        function showCallNotification(from, callType, callId) {
             const callNotification = document.createElement('div');
             callNotification.className = 'call-notification';
             callNotification.innerHTML = `
-                <h6>Incoming ${callType} Call</h6>
-                <p>From: <strong>${from}</strong></p>
-                <div class="d-grid gap-2">
-                    <button class="btn btn-success btn-sm answer-call">
-                        <i class="fas fa-phone me-1"></i>Answer
-                    </button>
-                    <button class="btn btn-danger btn-sm decline-call">
-                        <i class="fas fa-phone-slash me-1"></i>Decline
-                    </button>
+                <div class="text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-phone fa-3x text-primary mb-2"></i>
+                        <h5>Incoming ${callType} Call</h5>
+                        <p class="mb-2">From: <strong>${from}</strong></p>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-success btn-lg answer-call">
+                            <i class="fas fa-phone me-2"></i>Answer Call
+                        </button>
+                        <button class="btn btn-danger btn-lg decline-call">
+                            <i class="fas fa-phone-slash me-2"></i>Decline
+                        </button>
+                    </div>
                 </div>
             `;
             notifications.appendChild(callNotification);
@@ -577,20 +976,9 @@
             });
             
             callNotification.querySelector('.decline-call').addEventListener('click', () => {
-                declineIncomingCall();
+                declineIncomingCall(callId);
                 callNotification.remove();
             });
-            
-            // Auto remove after 30 seconds
-            setTimeout(() => {
-                if (callNotification.parentNode) {
-                    callNotification.remove();
-                    // Auto decline if not answered
-                    if (window.incomingCallData) {
-                        declineIncomingCall();
-                    }
-                }
-            }, 30000);
         }
 
         // Show loading spinner
@@ -614,17 +1002,17 @@
             }, 5000);
         }
 
-        // Update contacts list
+        // Update contacts list with connection types
         function updateContactsList(contacts) {
             userContacts = contacts;
             const contactsList = document.getElementById('contactsList');
             
             if (contacts.length === 0) {
                 contactsList.innerHTML = `
-                    <div class="text-center py-4">
-                        <i class="fas fa-users fa-2x text-muted mb-3"></i>
-                        <p class="text-muted">No contacts yet</p>
-                        <small class="text-muted">Connect with people to see them here</small>
+                    <div class="text-center py-4 text-white">
+                        <i class="fas fa-users fa-2x mb-3 opacity-50"></i>
+                        <p class="text-light">No contacts yet</p>
+                        <small class="text-light opacity-75">Connect with people to see them here</small>
                     </div>
                 `;
                 return;
@@ -635,21 +1023,24 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <span class="online-indicator ${contact.isOnline ? 'online' : 'offline'}"></span>
-                            <strong>${contact.email}</strong>
+                            <strong class="text-white">${contact.email}</strong>
+                            <span class="connection-badge ${contact.connectionType === 'permanent' ? 'badge-permanent' : 'badge-temporary'} text-white">
+                                ${contact.connectionType === 'permanent' ? 'Permanent' : '24H'}
+                            </span>
                         </div>
                         <div class="d-flex gap-2">
-                            <button class="btn btn-sm btn-outline-primary chat-with-user" data-email="${contact.email}">
+                            <button class="btn btn-sm btn-outline-light chat-with-user" data-email="${contact.email}">
                                 <i class="fas fa-comment"></i>
                             </button>
                             <button class="btn btn-sm btn-outline-success call-user" data-email="${contact.email}" data-type="voice">
                                 <i class="fas fa-phone"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-info call-user" data-email="${contact.email}" data-type="video">
+                            <button class="btn btn-sm btn-outline-primary call-user" data-email="${contact.email}" data-type="video">
                                 <i class="fas fa-video"></i>
                             </button>
                         </div>
                     </div>
-                    <div class="text-muted small mt-1">
+                    <div class="text-light small mt-1">
                         ${contact.isOnline ? 
                             '<span class="text-success">Online</span>' : 
                             `Last seen: ${new Date(contact.lastSeen).toLocaleTimeString()}`
@@ -729,6 +1120,7 @@
                         conn.otherUser === userEmail
                     );
                     if (connection) {
+                        currentCallLinkType = connection.linkType;
                         return connection.connectionId;
                     }
                 }
@@ -816,12 +1208,13 @@
                 socket.emit('start-call', {
                     userEmail: currentUser.email,
                     otherUserEmail: userEmail,
-                    callType: currentCallType
+                    callType: currentCallType,
+                    connectionId: connectionId
                 });
                 
                 showCallInterface(isVideo);
                 document.getElementById('callTypeBadge').textContent = isVideo ? 'Video Call' : 'Voice Call';
-                document.getElementById('callStatusBadge').textContent = 'Connecting...';
+                document.getElementById('callStatusBadge').textContent = 'Calling...';
                 hideLoading();
                 showNotification(`Calling ${userEmail}...`, 'info');
                 isInCall = true;
@@ -903,14 +1296,17 @@
                         case 'connected':
                             showNotification('Call connected successfully!', 'success');
                             document.getElementById('callStatusBadge').textContent = 'Connected';
+                            startCallTimer();
                             break;
                         case 'disconnected':
                         case 'failed':
                             showNotification('Call disconnected', 'warning');
                             document.getElementById('callStatusBadge').textContent = 'Disconnected';
+                            stopCallTimer();
                             break;
                         case 'closed':
                             console.log('🔗 PeerConnection closed');
+                            stopCallTimer();
                             break;
                     }
                 };
@@ -942,6 +1338,32 @@
             } catch (error) {
                 console.error('Error setting up peer connection:', error);
                 throw error;
+            }
+        }
+
+        // Call timer functions
+        function startCallTimer() {
+            callStartTime = new Date();
+            document.getElementById('callDuration').classList.remove('hidden');
+            callDurationInterval = setInterval(updateCallDuration, 1000);
+        }
+
+        function stopCallTimer() {
+            if (callDurationInterval) {
+                clearInterval(callDurationInterval);
+                callDurationInterval = null;
+            }
+            document.getElementById('callDuration').classList.add('hidden');
+        }
+
+        function updateCallDuration() {
+            if (callStartTime) {
+                const now = new Date();
+                const duration = Math.floor((now - callStartTime) / 1000);
+                const minutes = Math.floor(duration / 60);
+                const seconds = duration % 60;
+                document.getElementById('callDuration').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             }
         }
 
@@ -1109,9 +1531,10 @@
         document.getElementById('sendEmailRequest').addEventListener('click', async () => {
             const senderEmail = document.getElementById('senderEmail').value;
             const receiverEmail = document.getElementById('receiverEmail').value;
+            const linkType = document.querySelector('input[name="linkType"]:checked').value;
             
             if (!receiverEmail) {
-                alert('Please enter receiver email');
+                showNotification('Please enter receiver email', 'warning');
                 return;
             }
 
@@ -1120,18 +1543,23 @@
                 const response = await fetch('/api/send-email-request', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ senderEmail, receiverEmail })
+                    body: JSON.stringify({ senderEmail, receiverEmail, linkType })
                 });
                 
                 const result = await response.json();
                 if (result.success) {
                     showNotification(result.message, 'success');
-                    document.getElementById('receiverEmail').value = ''; // Clear input
+                    document.getElementById('receiverEmail').value = '';
                     
                     // Show shareable link
                     if (result.shareableLink) {
                         const requestResult = document.getElementById('requestResult');
                         document.getElementById('shareableLink').value = result.shareableLink;
+                        document.getElementById('linkExpiryInfo').innerHTML = `
+                            <i class="fas fa-${linkType === 'permanent' ? 'infinity' : 'clock'} me-1"></i>
+                            This is a ${linkType === 'permanent' ? 'permanent' : '24-hour'} connection link
+                            ${linkType === '24hours' ? ' (expires ' + new Date(result.expiresAt).toLocaleString() + ')' : ''}
+                        `;
                         requestResult.classList.remove('hidden');
                     }
                 } else {
@@ -1149,9 +1577,10 @@
         document.getElementById('generateRequest').addEventListener('click', async () => {
             const senderEmail = document.getElementById('senderEmail').value;
             const receiverEmail = document.getElementById('receiverEmail').value;
+            const linkType = document.querySelector('input[name="linkType"]:checked').value;
             
             if (!receiverEmail) {
-                alert('Please enter receiver email');
+                showNotification('Please enter receiver email', 'warning');
                 return;
             }
 
@@ -1160,15 +1589,20 @@
                 const response = await fetch('/api/generate-request', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ senderEmail, receiverEmail })
+                    body: JSON.stringify({ senderEmail, receiverEmail, linkType })
                 });
                 
                 const result = await response.json();
                 if (result.success) {
                     const requestResult = document.getElementById('requestResult');
                     document.getElementById('shareableLink').value = result.shareableLink;
+                    document.getElementById('linkExpiryInfo').innerHTML = `
+                        <i class="fas fa-${linkType === 'permanent' ? 'infinity' : 'clock'} me-1"></i>
+                        This is a ${linkType === 'permanent' ? 'permanent' : '24-hour'} connection link
+                        ${linkType === '24hours' ? ' (expires ' + new Date(result.expiresAt).toLocaleString() + ')' : ''}
+                    `;
                     requestResult.classList.remove('hidden');
-                    document.getElementById('receiverEmail').value = ''; // Clear input
+                    document.getElementById('receiverEmail').value = '';
                     showNotification('Connection link generated successfully!', 'success');
                 } else {
                     showNotification('Error: ' + result.error, 'danger');
@@ -1198,6 +1632,10 @@
                 
                 if (result.success && result.request.status === 'pending') {
                     document.getElementById('requestSender').textContent = result.request.senderEmail;
+                    document.getElementById('requestTypeInfo').innerHTML = `
+                        <i class="fas fa-${result.request.linkType === 'permanent' ? 'infinity' : 'clock'} me-1"></i>
+                        ${result.request.linkType === 'permanent' ? 'Permanent' : '24-Hour'} Connection
+                    `;
                     document.getElementById('pendingRequest').classList.remove('hidden');
                     document.getElementById('noRequest').classList.add('hidden');
                     
@@ -1237,7 +1675,8 @@
                 const result = await response.json();
                 if (result.success) {
                     currentConnectionId = result.connectionId;
-                    showNotification('Connection established!', 'success');
+                    currentCallLinkType = result.linkType;
+                    showNotification('Connection established! ' + result.message, 'success');
                     
                     // Start chat with the sender
                     startChatWithUser(result.senderEmail);
@@ -1278,6 +1717,61 @@
             }
         }
 
+        // Load call history
+        async function loadCallHistory() {
+            try {
+                const response = await fetch(`/api/call-history/${currentUser.email}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateCallHistoryList(result.history);
+                }
+            } catch (error) {
+                console.error('Error loading call history:', error);
+            }
+        }
+
+        function updateCallHistoryList(history) {
+            const callHistoryList = document.getElementById('callHistoryList');
+            
+            if (history.length === 0) {
+                callHistoryList.innerHTML = `
+                    <div class="text-center py-4 text-white">
+                        <i class="fas fa-history fa-2x mb-3 opacity-50"></i>
+                        <p class="text-light">No call history yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            callHistoryList.innerHTML = history.map(call => `
+                <div class="history-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong class="text-white">${call.participants.filter(p => p !== currentUser.email)[0]}</strong>
+                            <div class="small text-light">
+                                <i class="fas fa-${call.callType === 'video' ? 'video' : 'phone'} me-1"></i>
+                                ${call.callType} Call • ${formatDuration(call.duration)}
+                            </div>
+                            <div class="small text-muted">
+                                ${new Date(call.startedAt).toLocaleString()}
+                            </div>
+                        </div>
+                        <span class="badge ${call.status === 'ended' ? 'bg-success' : 'bg-warning'}">
+                            ${call.status}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds) return '0s';
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return minutes > 0 ? `${minutes}m ${secs}s` : `${secs}s`;
+        }
+
         // Socket event listeners
         socket.on('connect', () => {
             console.log('✅ Connected to server');
@@ -1300,7 +1794,8 @@
         socket.on('request-accepted', (data) => {
             console.log('✅ Request accepted:', data);
             currentConnectionId = data.connectionId;
-            showNotification(`${data.receiverEmail} accepted your connection request!`, 'success');
+            currentCallLinkType = data.linkType;
+            showNotification(data.message, 'success');
             
             // Start chat with the receiver
             startChatWithUser(data.receiverEmail);
@@ -1310,6 +1805,7 @@
         socket.on('connection-established', (data) => {
             console.log('✅ Connection established:', data);
             currentConnectionId = data.connectionId;
+            currentCallLinkType = data.linkType;
             showNotification(data.message, 'success');
         });
 
@@ -1367,10 +1863,23 @@
         // Incoming call notification
         socket.on('incoming-call', (data) => {
             console.log('📞 Incoming call:', data);
-            showCallNotification(data.from, data.callType);
+            showCallNotification(data.from, data.callType, data.callId);
             
             // Store call data for answering
             window.incomingCallData = data;
+            currentCallId = data.callId;
+        });
+
+        // Call rejected
+        socket.on('call-rejected', (data) => {
+            console.log('📞 Call rejected:', data);
+            showNotification('Call was rejected', 'warning');
+            endCall();
+        });
+
+        // Call history updated
+        socket.on('call-history-updated', (history) => {
+            updateCallHistoryList(history);
         });
 
         // WebRTC offer received
@@ -1426,6 +1935,7 @@
         // Call initiated confirmation
         socket.on('call-initiated', (data) => {
             console.log('✅ Call initiated:', data);
+            currentCallId = data.callId;
             showNotification(`Calling ${data.to}...`, 'info');
         });
 
@@ -1438,14 +1948,15 @@
         socket.on('call-answered', async (data) => {
             console.log('✅ Call answered:', data);
             showNotification('Call connected!', 'success');
+            startCallTimer();
         });
 
         // Handle call ended
         socket.on('call-ended', (data) => {
             console.log('📞 Call ended received from server');
             if (isInCall) {
+                showNotification(`Call ended. Duration: ${formatDuration(data.duration)}`, 'info');
                 endCall();
-                showNotification('Call ended by ' + (data.from || 'other user'), 'info');
             }
         });
 
@@ -1536,6 +2047,7 @@
                 const data = window.incomingCallData;
                 currentCallType = data.callType;
                 currentChatUser = data.from;
+                currentCallId = data.callId;
                 
                 // Get user media
                 const constraints = {
@@ -1562,7 +2074,8 @@
                 
                 socket.emit('answer-call', {
                     connectionId: data.connectionId,
-                    toUser: data.from
+                    toUser: data.from,
+                    callId: data.callId
                 });
                 
                 showCallInterface(data.callType === 'video');
@@ -1582,14 +2095,15 @@
         }
 
         // Decline incoming call
-        function declineIncomingCall() {
+        function declineIncomingCall(callId) {
             if (window.incomingCallData) {
-                socket.emit('end-call', {
-                    toUser: window.incomingCallData.from,
-                    connectionId: window.incomingCallData.connectionId
+                socket.emit('reject-call', {
+                    callId: callId,
+                    toUser: window.incomingCallData.from
                 });
                 showNotification('Call declined', 'info');
                 window.incomingCallData = null;
+                currentCallId = null;
             }
         }
 
@@ -1637,10 +2151,11 @@
                 peerConnection = null;
             }
             
-            if (currentChatUser) {
+            if (currentChatUser && currentCallId) {
                 socket.emit('end-call', { 
                     toUser: currentChatUser,
-                    connectionId: currentConnectionId
+                    connectionId: currentConnectionId,
+                    callId: currentCallId
                 });
             }
             
@@ -1654,8 +2169,10 @@
             // Reset video elements
             document.getElementById('localVideo').classList.remove('hidden');
             
-            // Clear incoming call data
+            // Clear call data
+            stopCallTimer();
             window.incomingCallData = null;
+            currentCallId = null;
             isInCall = false;
             
             console.log('📞 Call ended successfully');
@@ -1692,7 +2209,23 @@
             }
         });
 
-        console.log('🚀 Echo Connect App Loaded');
+        // Load call history when history tab is clicked
+        document.getElementById('history-tab').addEventListener('click', loadCallHistory);
+
+        // Add realistic button effects
+        document.querySelectorAll('.call-btn').forEach(btn => {
+            btn.addEventListener('mousedown', function() {
+                this.style.transform = 'scale(0.95)';
+            });
+            btn.addEventListener('mouseup', function() {
+                this.style.transform = 'scale(1)';
+            });
+            btn.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1)';
+            });
+        });
+
+        console.log('🚀 Echo Pro App Loaded');
     </script>
 </body>
 </html>
