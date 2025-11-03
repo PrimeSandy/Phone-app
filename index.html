@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -97,12 +98,6 @@
             border: none;
             font-size: 1.2em;
         }
-        .status-online {
-            color: var(--success-color);
-        }
-        .status-offline {
-            color: var(--danger-color);
-        }
         .connection-card {
             border-left: 4px solid var(--primary-color);
         }
@@ -122,6 +117,20 @@
             background: #f8f9fa;
             border-color: #dadce0;
         }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            min-width: 300px;
+        }
+        .call-notification {
+            background: white;
+            border: 2px solid var(--primary-color);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -139,6 +148,9 @@
             </div>
         </div>
     </nav>
+
+    <!-- Notifications -->
+    <div id="notifications" class="notification"></div>
 
     <div class="container-fluid py-4">
         <!-- Firebase Auth Section -->
@@ -341,7 +353,7 @@
     <script src="/socket.io/socket.io.js"></script>
     
     <script>
-        // Firebase configuration - Using your Firebase config
+        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyALXM9g6HkFHuHLYNXjZ417_9d6bkPGatc",
             authDomain: "tracker-pts.firebaseapp.com",
@@ -356,7 +368,7 @@
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
 
-        // Socket.io connection - Connect to your Render URL
+        // Socket.io connection
         const socket = io({
             transports: ['websocket', 'polling']
         });
@@ -371,6 +383,7 @@
         const chatSection = document.getElementById('chatSection');
         const callSection = document.getElementById('callSection');
         const loadingSpinner = document.getElementById('loadingSpinner');
+        const notifications = document.getElementById('notifications');
 
         // Auth elements
         const authEmail = document.getElementById('authEmail');
@@ -386,6 +399,61 @@
         let peerConnection = null;
         let localStream = null;
         let currentCallType = null;
+        let otherUserEmail = null;
+
+        // Show notification
+        function showNotification(message, type = 'info', duration = 5000) {
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} alert-dismissible fade show`;
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            notifications.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, duration);
+        }
+
+        // Show call notification
+        function showCallNotification(from, callType) {
+            const callNotification = document.createElement('div');
+            callNotification.className = 'call-notification';
+            callNotification.innerHTML = `
+                <h6>Incoming ${callType} Call</h6>
+                <p>From: <strong>${from}</strong></p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success btn-sm answer-call">
+                        <i class="fas fa-phone me-1"></i>Answer
+                    </button>
+                    <button class="btn btn-danger btn-sm decline-call">
+                        <i class="fas fa-phone-slash me-1"></i>Decline
+                    </button>
+                </div>
+            `;
+            notifications.appendChild(callNotification);
+            
+            // Add event listeners
+            callNotification.querySelector('.answer-call').addEventListener('click', () => {
+                answerIncomingCall();
+                callNotification.remove();
+            });
+            
+            callNotification.querySelector('.decline-call').addEventListener('click', () => {
+                declineIncomingCall();
+                callNotification.remove();
+            });
+            
+            // Auto remove after 30 seconds
+            setTimeout(() => {
+                if (callNotification.parentNode) {
+                    callNotification.remove();
+                }
+            }, 30000);
+        }
 
         // Show loading spinner
         function showLoading() {
@@ -483,6 +551,9 @@
                 appSection.classList.remove('hidden');
                 userInfo.classList.remove('hidden');
                 
+                // Register user with socket
+                socket.emit('register-user', { userEmail: user.email });
+                
                 // Check for pending request in URL
                 const urlParams = new URLSearchParams(window.location.search);
                 const requestId = urlParams.get('request');
@@ -508,49 +579,46 @@
         });
 
         // Generate connection request
-   // Generate connection request
-document.getElementById('generateRequest').addEventListener('click', async () => {
-    const senderEmail = document.getElementById('senderEmail').value;
-    const receiverEmail = document.getElementById('receiverEmail').value;
-    
-    if (!receiverEmail) {
-        alert('Please enter receiver email');
-        return;
-    }
+        document.getElementById('generateRequest').addEventListener('click', async () => {
+            const senderEmail = document.getElementById('senderEmail').value;
+            const receiverEmail = document.getElementById('receiverEmail').value;
+            
+            if (!receiverEmail) {
+                alert('Please enter receiver email');
+                return;
+            }
 
-    try {
-        showLoading();
-        const response = await fetch('/api/generate-request', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ senderEmail, receiverEmail })
+            try {
+                showLoading();
+                const response = await fetch('/api/generate-request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senderEmail, receiverEmail })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    const requestResult = document.getElementById('requestResult');
+                    document.getElementById('shareableLink').value = result.shareableLink;
+                    requestResult.classList.remove('hidden');
+                    showNotification('Connection link generated successfully!', 'success');
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error generating request:', error);
+                alert('Failed to generate request');
+            } finally {
+                hideLoading();
+            }
         });
-        
-        const result = await response.json();
-        if (result.success) {
-            const requestResult = document.getElementById('requestResult');
-            document.getElementById('shareableLink').value = result.shareableLink;
-            requestResult.classList.remove('hidden');
-            console.log('✅ Request generated successfully:', result);
-        } else {
-            console.error('❌ Server error:', result);
-            alert('Error: ' + (result.error || 'Unknown error occurred'));
-        }
-    } catch (error) {
-        console.error('❌ Network error:', error);
-        alert('Failed to generate request. Check console for details.');
-    } finally {
-        hideLoading();
-    }
-});
-
 
         // Copy link
         document.getElementById('copyLink').addEventListener('click', () => {
             const linkInput = document.getElementById('shareableLink');
             linkInput.select();
             navigator.clipboard.writeText(linkInput.value);
-            alert('Link copied to clipboard!');
+            showNotification('Link copied to clipboard!', 'success');
         });
 
         // Check pending request
@@ -567,6 +635,7 @@ document.getElementById('generateRequest').addEventListener('click', async () =>
                     
                     // Store request ID for acceptance
                     document.getElementById('acceptRequest').dataset.requestId = requestId;
+                    otherUserEmail = result.request.senderEmail;
                 } else {
                     alert('Invalid or expired request');
                     // Clear URL
@@ -596,9 +665,11 @@ document.getElementById('generateRequest').addEventListener('click', async () =>
                 const result = await response.json();
                 if (result.success) {
                     connectionId = result.connectionId;
+                    otherUserEmail = result.senderEmail;
                     startConnection(connectionId, result.senderEmail);
                     // Clear URL
                     window.history.replaceState({}, document.title, window.location.pathname);
+                    showNotification('Connection established!', 'success');
                 } else {
                     alert('Error: ' + result.error);
                 }
@@ -619,7 +690,7 @@ document.getElementById('generateRequest').addEventListener('click', async () =>
         });
 
         // Start connection
-        function startConnection(connId, otherUserEmail) {
+        function startConnection(connId, otherUser) {
             connectionSection.classList.add('hidden');
             chatSection.classList.remove('hidden');
             
@@ -631,7 +702,8 @@ document.getElementById('generateRequest').addEventListener('click', async () =>
             // Load chat history
             loadChatHistory(connId);
             
-            displaySystemMessage(`Connected with ${otherUserEmail}. Start chatting!`);
+            displaySystemMessage(`Connected with ${otherUser}. Start chatting!`);
+            showNotification(`Connected with ${otherUser}`, 'success');
         }
 
         // Socket event listeners
@@ -639,6 +711,11 @@ document.getElementById('generateRequest').addEventListener('click', async () =>
             console.log('✅ Connected to server');
             document.getElementById('connectionStatus').className = 'badge bg-success ms-2';
             document.getElementById('connectionStatus').textContent = 'Connected';
+            
+            // Re-register user if already logged in
+            if (currentUser) {
+                socket.emit('register-user', { userEmail: currentUser.email });
+            }
         });
 
         socket.on('disconnect', () => {
@@ -647,25 +724,62 @@ document.getElementById('generateRequest').addEventListener('click', async () =>
             document.getElementById('connectionStatus').textContent = 'Disconnected';
         });
 
+        // When sender receives notification that receiver accepted
+        socket.on('request-accepted', (data) => {
+            console.log('✅ Request accepted:', data);
+            connectionId = data.connectionId;
+            otherUserEmail = data.receiverEmail;
+            startConnection(connectionId, data.receiverEmail);
+            showNotification(`${data.receiverEmail} accepted your connection request!`, 'success');
+        });
+
         socket.on('receive-message', (data) => {
             displayMessage(data.senderEmail, data.message, data.senderEmail !== currentUser.email);
         });
 
         socket.on('user-joined', (data) => {
             displaySystemMessage(`${data.userEmail} joined the chat`);
+            showNotification(`${data.userEmail} joined the chat`, 'info');
         });
 
         socket.on('user-left', (data) => {
             displaySystemMessage(`${data.userEmail} left the chat`);
+            showNotification(`${data.userEmail} left the chat`, 'warning');
         });
 
         socket.on('connection-joined', (data) => {
             console.log('✅ Joined connection:', data.connectionId);
         });
 
+        // Incoming call notification
+        socket.on('incoming-call', (data) => {
+            console.log('📞 Incoming call:', data);
+            showCallNotification(data.from, data.callType);
+            
+            // Store call data for answering
+            window.incomingCallData = data;
+        });
+
+        socket.on('call-answered', async (data) => {
+            console.log('✅ Call answered:', data);
+            await peerConnection.setRemoteDescription(data.answer);
+            showNotification('Call connected!', 'success');
+        });
+
+        socket.on('ice-candidate', async (data) => {
+            console.log('❄️ ICE candidate received');
+            await peerConnection.addIceCandidate(data.candidate);
+        });
+
+        socket.on('call-ended', (data) => {
+            console.log('📞 Call ended');
+            endCall();
+            showNotification('Call ended', 'info');
+        });
+
         socket.on('error', (data) => {
             console.error('Socket error:', data);
-            alert('Connection error: ' + data.message);
+            showNotification('Connection error: ' + data.message, 'danger');
         });
 
         // Send message
@@ -739,6 +853,11 @@ document.getElementById('generateRequest').addEventListener('click', async () =>
         document.getElementById('startVoiceCall').addEventListener('click', () => startCall(false));
 
         async function startCall(isVideo) {
+            if (!connectionId || !otherUserEmail) {
+                showNotification('No active connection', 'warning');
+                return;
+            }
+
             try {
                 currentCallType = isVideo ? 'video' : 'voice';
                 showLoading();
@@ -766,9 +885,10 @@ document.getElementById('generateRequest').addEventListener('click', async () =>
                 
                 showCallInterface(isVideo);
                 hideLoading();
+                showNotification(`Calling ${otherUserEmail}...`, 'info');
             } catch (error) {
                 console.error('Error starting call:', error);
-                alert('Failed to start call: ' + error.message);
+                showNotification('Failed to start call: ' + error.message, 'danger');
                 hideLoading();
             }
         }
@@ -790,68 +910,74 @@ document.getElementById('generateRequest').addEventListener('click', async () =>
             
             // Handle remote stream
             peerConnection.ontrack = (event) => {
+                console.log('📹 Remote stream received');
                 document.getElementById('remoteVideo').srcObject = event.streams[0];
             };
             
             // Handle ICE candidates
             peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
+                if (event.candidate && otherUserEmail) {
                     socket.emit('ice-candidate', {
                         connectionId,
-                        candidate: event.candidate
+                        candidate: event.candidate,
+                        toUser: otherUserEmail
                     });
                 }
             };
         }
 
-        // Socket events for calls
-        socket.on('incoming-call', async (data) => {
-            if (confirm(`Incoming ${data.callType} call from ${data.from}. Accept?`)) {
-                try {
-                    showLoading();
-                    currentCallType = data.callType;
-                    
-                    localStream = await navigator.mediaDevices.getUserMedia({
-                        video: data.callType === 'video',
-                        audio: true
-                    });
-                    
-                    if (data.callType === 'video') {
-                        document.getElementById('localVideo').srcObject = localStream;
-                    }
-                    
-                    setupPeerConnection();
-                    
-                    await peerConnection.setRemoteDescription(data.offer);
-                    const answer = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(answer);
-                    
-                    socket.emit('answer-call', {
-                        connectionId,
-                        answer
-                    });
-                    
-                    showCallInterface(data.callType === 'video');
-                    hideLoading();
-                } catch (error) {
-                    console.error('Error answering call:', error);
-                    alert('Failed to answer call: ' + error.message);
-                    hideLoading();
+        // Answer incoming call
+        async function answerIncomingCall() {
+            if (!window.incomingCallData) return;
+            
+            try {
+                showLoading();
+                const data = window.incomingCallData;
+                currentCallType = data.callType;
+                otherUserEmail = data.from;
+                connectionId = data.connectionId;
+                
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: data.callType === 'video',
+                    audio: true
+                });
+                
+                if (data.callType === 'video') {
+                    document.getElementById('localVideo').srcObject = localStream;
                 }
+                
+                setupPeerConnection();
+                
+                await peerConnection.setRemoteDescription(data.offer);
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                socket.emit('answer-call', {
+                    connectionId,
+                    answer,
+                    toUser: data.from
+                });
+                
+                showCallInterface(data.callType === 'video');
+                hideLoading();
+                showNotification('Call answered!', 'success');
+            } catch (error) {
+                console.error('Error answering call:', error);
+                showNotification('Failed to answer call: ' + error.message, 'danger');
+                hideLoading();
             }
-        });
+        }
 
-        socket.on('call-answered', async (data) => {
-            await peerConnection.setRemoteDescription(data.answer);
-        });
-
-        socket.on('ice-candidate', async (data) => {
-            await peerConnection.addIceCandidate(data.candidate);
-        });
-
-        socket.on('call-ended', () => {
-            endCall();
-        });
+        // Decline incoming call
+        function declineIncomingCall() {
+            if (window.incomingCallData) {
+                socket.emit('end-call', {
+                    connectionId: window.incomingCallData.connectionId,
+                    toUser: window.incomingCallData.from
+                });
+                showNotification('Call declined', 'info');
+            }
+        }
 
         function showCallInterface(isVideo) {
             chatSection.classList.add('hidden');
@@ -876,7 +1002,12 @@ document.getElementById('generateRequest').addEventListener('click', async () =>
                 peerConnection.close();
             }
             
-            socket.emit('end-call', { connectionId });
+            if (connectionId && otherUserEmail) {
+                socket.emit('end-call', { 
+                    connectionId, 
+                    toUser: otherUserEmail 
+                });
+            }
             
             callSection.classList.add('hidden');
             chatSection.classList.remove('hidden');
@@ -887,6 +1018,9 @@ document.getElementById('generateRequest').addEventListener('click', async () =>
             
             // Reset video elements
             document.getElementById('localVideo').classList.remove('hidden');
+            
+            // Clear incoming call data
+            window.incomingCallData = null;
         }
 
         // Call controls
@@ -898,6 +1032,7 @@ document.getElementById('generateRequest').addEventListener('click', async () =>
                 });
                 this.classList.toggle('btn-danger');
                 this.classList.toggle('btn-warning');
+                this.innerHTML = track.enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
             }
         });
 
@@ -909,14 +1044,11 @@ document.getElementById('generateRequest').addEventListener('click', async () =>
                 });
                 this.classList.toggle('btn-danger');
                 this.classList.toggle('btn-warning');
+                this.innerHTML = track.enabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
             }
         });
 
-        // Auto-connect to server
         console.log('🚀 Echo Connect App Loaded');
-        console.log('🌐 Server URL: https://phone-app-8i6m.onrender.com');
-        console.log('🔗 MongoDB: Connected to Atlas');
     </script>
 </body>
 </html>
-
