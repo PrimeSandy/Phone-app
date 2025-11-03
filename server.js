@@ -12,7 +12,7 @@ const server = http.createServer(app);
 // CORS configuration for online deployment
 const io = socketIo(server, {
   cors: {
-    origin: ["https://phone-app-8i6m.onrender.com", "http://localhost:3000"],
+    origin: "*",
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -20,7 +20,7 @@ const io = socketIo(server, {
 
 // Middleware
 app.use(cors({
-  origin: ["https://phone-app-8i6m.onrender.com", "http://localhost:3000"],
+  origin: "*",
   credentials: true
 }));
 app.use(express.json());
@@ -30,12 +30,22 @@ app.use(express.static(__dirname));
 const MONGO_URI = "mongodb+srv://allrounders9666_db_user:sandy20056db@cluster0call.zl23mfk.mongodb.net/echodb?retryWrites=true&w=majority&appName=Cluster0call";
 const BASE_URL = "https://phone-app-8i6m.onrender.com";
 
+console.log('🔗 Attempting to connect to MongoDB...');
+
 mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 30000, // 30 seconds
+  socketTimeoutMS: 45000, // 45 seconds
 })
-.then(() => console.log('✅ Connected to MongoDB Atlas'))
-.catch(err => console.error('❌ MongoDB connection error:', err));
+.then(() => {
+  console.log('✅ Connected to MongoDB Atlas successfully!');
+  console.log('📊 Database:', mongoose.connection.db.databaseName);
+})
+.catch(err => {
+  console.error('❌ MongoDB connection error:', err);
+  console.error('💡 Please check your MongoDB connection string and network access');
+});
 
 // MongoDB Schemas
 const userSchema = new mongoose.Schema({
@@ -76,23 +86,71 @@ app.get('/', (req, res) => {
 
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
+  const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
+  
   res.status(200).json({ 
     status: 'OK', 
     message: 'Server is running',
+    database: dbStatus,
     timestamp: new Date().toISOString(),
     baseUrl: BASE_URL
   });
 });
 
+// Test database connection
+app.get('/api/test-db', async (req, res) => {
+  try {
+    // Test if we can create and read a test document
+    const testDoc = new ConnectionRequest({
+      requestId: 'test-' + Date.now(),
+      senderEmail: 'test@test.com',
+      receiverEmail: 'test2@test.com'
+    });
+    
+    await testDoc.save();
+    
+    // Try to read it back
+    const foundDoc = await ConnectionRequest.findOne({ requestId: testDoc.requestId });
+    
+    // Clean up
+    await ConnectionRequest.deleteOne({ requestId: testDoc.requestId });
+    
+    res.json({
+      success: true,
+      message: 'Database test successful',
+      write: true,
+      read: !!foundDoc,
+      database: mongoose.connection.db.databaseName
+    });
+  } catch (error) {
+    console.error('Database test error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      database: mongoose.connection.db?.databaseName || 'Unknown'
+    });
+  }
+});
+
 // Generate connection request
 app.post('/api/generate-request', async (req, res) => {
   try {
+    console.log('📨 Received generate request:', req.body);
+    
     const { senderEmail, receiverEmail } = req.body;
     
     if (!senderEmail || !receiverEmail) {
       return res.status(400).json({ 
         success: false, 
         error: 'Sender and receiver emails are required' 
+      });
+    }
+    
+    // Check MongoDB connection
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not connected. Please try again.'
       });
     }
     
@@ -104,7 +162,9 @@ app.post('/api/generate-request', async (req, res) => {
       receiverEmail
     });
     
+    console.log('💾 Saving request to database...');
     await request.save();
+    console.log('✅ Request saved successfully');
     
     const shareableLink = `${BASE_URL}/?request=${requestId}`;
     
@@ -114,11 +174,13 @@ app.post('/api/generate-request', async (req, res) => {
       shareableLink,
       message: 'Connection request generated successfully'
     });
+    
   } catch (error) {
-    console.error('Error generating request:', error);
+    console.error('❌ Error generating request:', error);
     res.status(500).json({ 
       success: false, 
-      error: 'Internal server error' 
+      error: error.message,
+      details: 'Check server logs for more information'
     });
   }
 });
@@ -126,6 +188,8 @@ app.post('/api/generate-request', async (req, res) => {
 // Get connection request details
 app.get('/api/request/:requestId', async (req, res) => {
   try {
+    console.log('🔍 Fetching request:', req.params.requestId);
+    
     const request = await ConnectionRequest.findOne({ 
       requestId: req.params.requestId 
     });
@@ -141,11 +205,12 @@ app.get('/api/request/:requestId', async (req, res) => {
       success: true, 
       request 
     });
+    
   } catch (error) {
-    console.error('Error fetching request:', error);
+    console.error('❌ Error fetching request:', error);
     res.status(500).json({ 
       success: false, 
-      error: 'Internal server error' 
+      error: error.message 
     });
   }
 });
@@ -200,7 +265,7 @@ app.post('/api/accept-request', async (req, res) => {
     console.error('Error accepting request:', error);
     res.status(500).json({ 
       success: false, 
-      error: 'Internal server error' 
+      error: error.message 
     });
   }
 });
@@ -220,7 +285,25 @@ app.get('/api/chat/:connectionId', async (req, res) => {
     console.error('Error fetching chat:', error);
     res.status(500).json({ 
       success: false, 
-      error: 'Internal server error' 
+      error: error.message 
+    });
+  }
+});
+
+// Get all connection requests (for debugging)
+app.get('/api/debug/requests', async (req, res) => {
+  try {
+    const requests = await ConnectionRequest.find().sort({ createdAt: -1 });
+    res.json({
+      success: true,
+      count: requests.length,
+      requests
+    });
+  } catch (error) {
+    console.error('Error fetching requests:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
     });
   }
 });
@@ -356,7 +439,8 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🔗 MongoDB: Connected to Atlas`);
   console.log(`🌐 Base URL: ${BASE_URL}`);
   console.log(`✅ Health check: ${BASE_URL}/health`);
+  console.log(`🔍 Database test: ${BASE_URL}/api/test-db`);
+  console.log(`📊 Debug requests: ${BASE_URL}/api/debug/requests`);
 });
