@@ -12,7 +12,7 @@ const server = http.createServer(app);
 // CORS configuration for online deployment
 const io = socketIo(server, {
   cors: {
-    origin: ["https://sandy-echo.onrender.com", "http://localhost:3000"],
+    origin: ["https://phone-app-8i6m.onrender.com", "http://localhost:3000"],
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -20,15 +20,15 @@ const io = socketIo(server, {
 
 // Middleware
 app.use(cors({
-  origin: ["https://sandy-echo.onrender.com", "http://localhost:3000"],
+  origin: ["https://phone-app-8i6m.onrender.com", "http://localhost:3000"],
   credentials: true
 }));
 app.use(express.json());
 app.use(express.static(__dirname));
 
 // MongoDB Connection - Using your online MongoDB
-const MONGO_URI = "mongodb+srv://santhoshgowtham777_db_user:Sandy2005ED@cluster0.lxkilqq.mongodb.net/echo?retryWrites=true&w=majority&appName=Cluster0";
-const BASE_URL = "https://sandy-echo.onrender.com";
+const MONGO_URI = "mongodb+srv://allrounders9666_db_user:sandy20056db@cluster0call.zl23mfk.mongodb.net/echodb?retryWrites=true&w=majority&appName=Cluster0call";
+const BASE_URL = "https://phone-app-8i6m.onrender.com";
 
 mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
@@ -79,7 +79,8 @@ app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     message: 'Server is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    baseUrl: BASE_URL
   });
 });
 
@@ -357,4 +358,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔗 MongoDB: Connected to Atlas`);
   console.log(`🌐 Base URL: ${BASE_URL}`);
+  console.log(`✅ Health check: ${BASE_URL}/health`);
 });
