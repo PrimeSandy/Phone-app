@@ -9,7 +9,7 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-// CORS configuration for online deployment
+// CORS configuration
 const io = socketIo(server, {
   cors: {
     origin: "*",
@@ -26,35 +26,25 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// MongoDB Connection - Using your online MongoDB
+// MongoDB Connection
 const MONGO_URI = "mongodb+srv://allrounders9666_db_user:sandy20056db@cluster0call.zl23mfk.mongodb.net/echodb?retryWrites=true&w=majority&appName=Cluster0call";
 const BASE_URL = "https://phone-app-8i6m.onrender.com";
 
-console.log('🔗 Attempting to connect to MongoDB...');
+console.log('🔗 Connecting to MongoDB...');
 
 mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 30000, // 30 seconds
-  socketTimeoutMS: 45000, // 45 seconds
+  serverSelectionTimeoutMS: 30000,
 })
 .then(() => {
   console.log('✅ Connected to MongoDB Atlas successfully!');
-  console.log('📊 Database:', mongoose.connection.db.databaseName);
 })
 .catch(err => {
   console.error('❌ MongoDB connection error:', err);
-  console.error('💡 Please check your MongoDB connection string and network access');
 });
 
 // MongoDB Schemas
-const userSchema = new mongoose.Schema({
-  email: String,
-  firebaseUID: String,
-  displayName: String,
-  createdAt: { type: Date, default: Date.now }
-});
-
 const connectionRequestSchema = new mongoose.Schema({
   requestId: String,
   senderEmail: String,
@@ -71,86 +61,39 @@ const chatMessageSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now }
 });
 
-const User = mongoose.model('User', userSchema);
 const ConnectionRequest = mongoose.model('ConnectionRequest', connectionRequestSchema);
 const ChatMessage = mongoose.model('ChatMessage', chatMessageSchema);
 
-// Store active connections and calls
-const activeConnections = new Map();
-const activeCalls = new Map();
+// Store active users and connections
+const activeUsers = new Map(); // email -> socketId
+const activeConnections = new Map(); // connectionId -> {users: [email1, email2]}
+const pendingRequests = new Map(); // requestId -> {senderEmail, receiverEmail}
 
 // Routes
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Health check endpoint for Render
+// Health check
 app.get('/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
-  
   res.status(200).json({ 
     status: 'OK', 
-    message: 'Server is running',
     database: dbStatus,
-    timestamp: new Date().toISOString(),
-    baseUrl: BASE_URL
+    activeUsers: activeUsers.size,
+    activeConnections: activeConnections.size
   });
-});
-
-// Test database connection
-app.get('/api/test-db', async (req, res) => {
-  try {
-    // Test if we can create and read a test document
-    const testDoc = new ConnectionRequest({
-      requestId: 'test-' + Date.now(),
-      senderEmail: 'test@test.com',
-      receiverEmail: 'test2@test.com'
-    });
-    
-    await testDoc.save();
-    
-    // Try to read it back
-    const foundDoc = await ConnectionRequest.findOne({ requestId: testDoc.requestId });
-    
-    // Clean up
-    await ConnectionRequest.deleteOne({ requestId: testDoc.requestId });
-    
-    res.json({
-      success: true,
-      message: 'Database test successful',
-      write: true,
-      read: !!foundDoc,
-      database: mongoose.connection.db.databaseName
-    });
-  } catch (error) {
-    console.error('Database test error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      database: mongoose.connection.db?.databaseName || 'Unknown'
-    });
-  }
 });
 
 // Generate connection request
 app.post('/api/generate-request', async (req, res) => {
   try {
-    console.log('📨 Received generate request:', req.body);
-    
     const { senderEmail, receiverEmail } = req.body;
     
     if (!senderEmail || !receiverEmail) {
       return res.status(400).json({ 
         success: false, 
         error: 'Sender and receiver emails are required' 
-      });
-    }
-    
-    // Check MongoDB connection
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(500).json({
-        success: false,
-        error: 'Database not connected. Please try again.'
       });
     }
     
@@ -162,9 +105,14 @@ app.post('/api/generate-request', async (req, res) => {
       receiverEmail
     });
     
-    console.log('💾 Saving request to database...');
     await request.save();
-    console.log('✅ Request saved successfully');
+    
+    // Store in memory for quick access
+    pendingRequests.set(requestId, {
+      senderEmail,
+      receiverEmail,
+      status: 'pending'
+    });
     
     const shareableLink = `${BASE_URL}/?request=${requestId}`;
     
@@ -176,11 +124,10 @@ app.post('/api/generate-request', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error generating request:', error);
+    console.error('Error generating request:', error);
     res.status(500).json({ 
       success: false, 
-      error: error.message,
-      details: 'Check server logs for more information'
+      error: error.message
     });
   }
 });
@@ -188,11 +135,21 @@ app.post('/api/generate-request', async (req, res) => {
 // Get connection request details
 app.get('/api/request/:requestId', async (req, res) => {
   try {
-    console.log('🔍 Fetching request:', req.params.requestId);
+    const requestId = req.params.requestId;
     
-    const request = await ConnectionRequest.findOne({ 
-      requestId: req.params.requestId 
-    });
+    // Check memory first, then database
+    let request = pendingRequests.get(requestId);
+    if (!request) {
+      const dbRequest = await ConnectionRequest.findOne({ requestId });
+      if (dbRequest) {
+        request = {
+          senderEmail: dbRequest.senderEmail,
+          receiverEmail: dbRequest.receiverEmail,
+          status: dbRequest.status
+        };
+        pendingRequests.set(requestId, request);
+      }
+    }
     
     if (!request) {
       return res.status(404).json({ 
@@ -207,7 +164,7 @@ app.get('/api/request/:requestId', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error fetching request:', error);
+    console.error('Error fetching request:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message 
@@ -227,8 +184,8 @@ app.post('/api/accept-request', async (req, res) => {
       });
     }
     
+    // Update in database
     const request = await ConnectionRequest.findOne({ requestId });
-    
     if (!request) {
       return res.status(404).json({ 
         success: false, 
@@ -236,18 +193,17 @@ app.post('/api/accept-request', async (req, res) => {
       });
     }
     
-    if (request.status !== 'pending') {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Request already processed' 
-      });
-    }
-    
     request.receiverEmail = receiverEmail;
     request.status = 'accepted';
     await request.save();
     
-    // Create connection ID
+    // Update in memory
+    if (pendingRequests.has(requestId)) {
+      pendingRequests.get(requestId).status = 'accepted';
+      pendingRequests.get(requestId).receiverEmail = receiverEmail;
+    }
+    
+    // Create connection
     const connectionId = uuidv4();
     activeConnections.set(connectionId, {
       users: [request.senderEmail, receiverEmail],
@@ -255,12 +211,23 @@ app.post('/api/accept-request', async (req, res) => {
       requestId: requestId
     });
     
+    // Notify sender that request was accepted
+    const senderSocketId = activeUsers.get(request.senderEmail);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit('request-accepted', {
+        connectionId,
+        receiverEmail,
+        message: `${receiverEmail} accepted your connection request`
+      });
+    }
+    
     res.json({
       success: true,
       connectionId,
       senderEmail: request.senderEmail,
       message: 'Connection established successfully'
     });
+    
   } catch (error) {
     console.error('Error accepting request:', error);
     res.status(500).json({ 
@@ -290,27 +257,34 @@ app.get('/api/chat/:connectionId', async (req, res) => {
   }
 });
 
-// Get all connection requests (for debugging)
-app.get('/api/debug/requests', async (req, res) => {
-  try {
-    const requests = await ConnectionRequest.find().sort({ createdAt: -1 });
-    res.json({
-      success: true,
-      count: requests.length,
-      requests
-    });
-  } catch (error) {
-    console.error('Error fetching requests:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
-  }
-});
-
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('🔗 User connected:', socket.id);
+
+  // Register user
+  socket.on('register-user', (data) => {
+    const { userEmail } = data;
+    if (userEmail) {
+      activeUsers.set(userEmail, socket.id);
+      socket.userEmail = userEmail;
+      console.log(`👤 User registered: ${userEmail} (${socket.id})`);
+      
+      // Check if this user has any pending connections
+      for (let [connectionId, connection] of activeConnections) {
+        if (connection.users.includes(userEmail)) {
+          socket.join(connectionId);
+          socket.connectionId = connectionId;
+          console.log(`✅ ${userEmail} auto-joined connection: ${connectionId}`);
+          
+          // Notify other users
+          socket.to(connectionId).emit('user-online', {
+            userEmail,
+            message: `${userEmail} is now online`
+          });
+        }
+      }
+    }
+  });
 
   // Join connection room
   socket.on('join-connection', (data) => {
@@ -332,12 +306,6 @@ io.on('connection', (socket) => {
       userEmail,
       message: `${userEmail} joined the connection`,
       timestamp: new Date()
-    });
-    
-    // Send connection info to the user
-    socket.emit('connection-joined', {
-      connectionId,
-      message: 'Successfully joined connection'
     });
   });
 
@@ -378,54 +346,105 @@ io.on('connection', (socket) => {
   socket.on('start-call', (data) => {
     const { connectionId, userEmail, offer, callType } = data;
     
-    activeCalls.set(connectionId, { 
-      offer, 
-      initiator: userEmail,
-      callType: callType || 'video',
-      startedAt: new Date()
-    });
+    console.log(`📞 Call started by ${userEmail} in ${connectionId}`);
     
-    socket.to(connectionId).emit('incoming-call', {
+    // Get the connection
+    const connection = activeConnections.get(connectionId);
+    if (!connection) {
+      socket.emit('error', { message: 'Connection not found' });
+      return;
+    }
+    
+    // Find the other user in the connection
+    const otherUser = connection.users.find(email => email !== userEmail);
+    if (!otherUser) {
+      socket.emit('error', { message: 'Other user not found in connection' });
+      return;
+    }
+    
+    // Get the other user's socket ID
+    const otherUserSocketId = activeUsers.get(otherUser);
+    if (!otherUserSocketId) {
+      socket.emit('error', { message: 'Other user is offline' });
+      return;
+    }
+    
+    console.log(`📞 Sending call to ${otherUser} (${otherUserSocketId})`);
+    
+    // Send call to the other user
+    io.to(otherUserSocketId).emit('incoming-call', {
       offer,
       from: userEmail,
       callType: callType || 'video',
+      connectionId,
       timestamp: new Date()
     });
-    
-    console.log(`📞 Call started by ${userEmail} in ${connectionId}`);
   });
 
   // Handle call answer
   socket.on('answer-call', (data) => {
-    const { connectionId, answer } = data;
-    socket.to(connectionId).emit('call-answered', { 
-      answer,
-      timestamp: new Date()
-    });
+    const { connectionId, answer, toUser } = data;
+    
+    console.log(`📞 Call answered for connection: ${connectionId}`);
+    
+    // Find the user who initiated the call
+    const callerSocketId = activeUsers.get(toUser);
+    if (callerSocketId) {
+      io.to(callerSocketId).emit('call-answered', { 
+        answer,
+        connectionId,
+        timestamp: new Date()
+      });
+    }
   });
 
   // Handle ICE candidates
   socket.on('ice-candidate', (data) => {
-    const { connectionId, candidate } = data;
-    socket.to(connectionId).emit('ice-candidate', { 
-      candidate,
-      timestamp: new Date()
-    });
+    const { connectionId, candidate, toUser } = data;
+    
+    const targetSocketId = activeUsers.get(toUser);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('ice-candidate', { 
+        candidate,
+        connectionId,
+        timestamp: new Date()
+      });
+    }
   });
 
   // Handle call end
   socket.on('end-call', (data) => {
-    const { connectionId } = data;
-    activeCalls.delete(connectionId);
-    socket.to(connectionId).emit('call-ended', {
-      timestamp: new Date()
-    });
+    const { connectionId, toUser } = data;
+    
     console.log(`📞 Call ended in ${connectionId}`);
+    
+    if (toUser) {
+      const targetSocketId = activeUsers.get(toUser);
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('call-ended', {
+          connectionId,
+          timestamp: new Date()
+        });
+      }
+    } else {
+      // Broadcast to all in connection
+      io.to(connectionId).emit('call-ended', {
+        connectionId,
+        timestamp: new Date()
+      });
+    }
   });
 
   // Handle disconnect
   socket.on('disconnect', () => {
     console.log('❌ User disconnected:', socket.id);
+    
+    // Remove from active users
+    if (socket.userEmail) {
+      activeUsers.delete(socket.userEmail);
+    }
+    
+    // Notify connection members
     if (socket.connectionId) {
       socket.to(socket.connectionId).emit('user-left', {
         userEmail: socket.userEmail,
@@ -441,6 +460,4 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Base URL: ${BASE_URL}`);
   console.log(`✅ Health check: ${BASE_URL}/health`);
-  console.log(`🔍 Database test: ${BASE_URL}/api/test-db`);
-  console.log(`📊 Debug requests: ${BASE_URL}/api/debug/requests`);
 });
