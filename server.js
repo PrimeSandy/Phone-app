@@ -29,7 +29,7 @@ app.use(express.static(__dirname));
 
 // MongoDB Connection
 const MONGO_URI = "mongodb+srv://allrounders9666_db_user:sandy20056db@cluster0call.zl23mfk.mongodb.net/echodb?retryWrites=true&w=majority&appName=Cluster0call";
-const BASE_URL = "https://phone-app-8i6m.onrender.com";
+const BASE_URL = process.env.BASE_URL || "https://phone-app-8i6m.onrender.com";
 
 console.log('🔗 Connecting to MongoDB...');
 
@@ -45,12 +45,21 @@ mongoose.connect(MONGO_URI, {
   console.error('❌ MongoDB connection error:', err);
 });
 
-// Email transporter setup
-const emailTransporter = nodemailer.createTransporter({
+// Email transporter setup - Fixed the function name
+const emailTransporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER || 'your-email@gmail.com',
     pass: process.env.EMAIL_PASS || 'your-app-password'
+  }
+});
+
+// Test email configuration
+emailTransporter.verify(function(error, success) {
+  if (error) {
+    console.log('❌ Email configuration error:', error);
+  } else {
+    console.log('✅ Email server is ready to send messages');
   }
 });
 
@@ -141,7 +150,8 @@ app.get('/health', (req, res) => {
     status: 'OK', 
     database: dbStatus,
     activeUsers: activeUsers.size,
-    activeConnections: activeConnections.size
+    activeConnections: activeConnections.size,
+    emailConfigured: !!process.env.EMAIL_USER
   });
 });
 
@@ -209,74 +219,78 @@ app.post('/api/send-email-request', async (req, res) => {
     
     const shareableLink = `${BASE_URL}/?request=${requestId}`;
     
-    // Send professional email
-    try {
-      const mailOptions = {
-        from: process.env.EMAIL_USER || 'echopro@noreply.com',
-        to: receiverEmail,
-        subject: `🔗 Connection Request from ${senderEmail} - Echo Pro`,
-        html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { background: linear-gradient(135deg, #000000, #333333); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-              .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-              .button { display: inline-block; background: linear-gradient(135deg, #000000, #333333); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; margin: 20px 0; }
-              .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-              .features { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
-              .feature-item { margin: 10px 0; }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>🔗 Echo Pro Connection Request</h1>
-                <p>Professional Communication Platform</p>
+    // Send professional email if email is configured
+    if (process.env.EMAIL_USER) {
+      try {
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: receiverEmail,
+          subject: `🔗 Connection Request from ${senderEmail} - Echo Pro`,
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #000000, #333333); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                .button { display: inline-block; background: linear-gradient(135deg, #000000, #333333); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; margin: 20px 0; }
+                .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+                .features { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+                .feature-item { margin: 10px 0; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>🔗 Echo Pro Connection Request</h1>
+                  <p>Professional Communication Platform</p>
+                </div>
+                <div class="content">
+                  <h2>Hello!</h2>
+                  <p><strong>${senderEmail}</strong> wants to connect with you on <strong>Echo Pro</strong> - the professional communication platform.</p>
+                  
+                  <div class="features">
+                    <h3>🚀 What you can do with Echo Pro:</h3>
+                    <div class="feature-item">✅ <strong>Real-time Chat</strong> - Instant messaging</div>
+                    <div class="feature-item">📞 <strong>Voice Calls</strong> - Crystal clear audio calls</div>
+                    <div class="feature-item">👥 <strong>Secure Connections</strong> - End-to-end encrypted</div>
+                    <div class="feature-item">💼 <strong>Professional Interface</strong> - Clean and modern design</div>
+                  </div>
+                  
+                  <p><strong>Connection Type:</strong> ${linkType === 'permanent' ? 'Permanent Connection 🔄' : '24-Hour Connection ⏰'}</p>
+                  <p><strong>Expires:</strong> ${expiresAt.toLocaleString()}</p>
+                  
+                  <div style="text-align: center;">
+                    <a href="${shareableLink}" class="button">Accept Connection Request</a>
+                  </div>
+                  
+                  <p style="font-size: 14px; color: #666;">
+                    Or copy this link: <br>
+                    <code style="background: #f0f0f0; padding: 8px; border-radius: 4px; word-break: break-all;">${shareableLink}</code>
+                  </p>
+                  
+                  <div class="footer">
+                    <p>This is an automated message from Echo Pro. Please do not reply to this email.</p>
+                    <p>If you didn't expect this request, you can safely ignore this email.</p>
+                  </div>
+                </div>
               </div>
-              <div class="content">
-                <h2>Hello!</h2>
-                <p><strong>${senderEmail}</strong> wants to connect with you on <strong>Echo Pro</strong> - the professional communication platform.</p>
-                
-                <div class="features">
-                  <h3>🚀 What you can do with Echo Pro:</h3>
-                  <div class="feature-item">✅ <strong>Real-time Chat</strong> - Instant messaging</div>
-                  <div class="feature-item">📞 <strong>Voice Calls</strong> - Crystal clear audio calls</div>
-                  <div class="feature-item">👥 <strong>Secure Connections</strong> - End-to-end encrypted</div>
-                  <div class="feature-item">💼 <strong>Professional Interface</strong> - Clean and modern design</div>
-                </div>
-                
-                <p><strong>Connection Type:</strong> ${linkType === 'permanent' ? 'Permanent Connection 🔄' : '24-Hour Connection ⏰'}</p>
-                <p><strong>Expires:</strong> ${expiresAt.toLocaleString()}</p>
-                
-                <div style="text-align: center;">
-                  <a href="${shareableLink}" class="button">Accept Connection Request</a>
-                </div>
-                
-                <p style="font-size: 14px; color: #666;">
-                  Or copy this link: <br>
-                  <code style="background: #f0f0f0; padding: 8px; border-radius: 4px; word-break: break-all;">${shareableLink}</code>
-                </p>
-                
-                <div class="footer">
-                  <p>This is an automated message from Echo Pro. Please do not reply to this email.</p>
-                  <p>If you didn't expect this request, you can safely ignore this email.</p>
-                </div>
-              </div>
-            </div>
-          </body>
-          </html>
-        `
-      };
-      
-      await emailTransporter.sendMail(mailOptions);
-      console.log(`📧 Professional email sent to ${receiverEmail}`);
-      
-    } catch (emailError) {
-      console.error('Email sending error:', emailError);
-      // Continue even if email fails
+            </body>
+            </html>
+          `
+        };
+        
+        await emailTransporter.sendMail(mailOptions);
+        console.log(`📧 Professional email sent to ${receiverEmail}`);
+        
+      } catch (emailError) {
+        console.error('Email sending error:', emailError);
+        // Continue even if email fails
+      }
+    } else {
+      console.log('📧 Email not configured - skipping email send');
     }
     
     res.json({
@@ -285,7 +299,9 @@ app.post('/api/send-email-request', async (req, res) => {
       shareableLink,
       linkType,
       expiresAt,
-      message: `Professional connection request sent to ${receiverEmail}! They will receive an email with your invitation.`
+      message: process.env.EMAIL_USER ? 
+        `Professional connection request sent to ${receiverEmail}! They will receive an email with your invitation.` :
+        `Connection request created! Share this link: ${shareableLink}`
     });
     
   } catch (error) {
