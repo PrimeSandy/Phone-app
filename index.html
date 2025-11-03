@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Echo Pro - Professional Communication</title>
+    <title>Echo Pro - Chat & Voice Calls</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -124,33 +124,36 @@
             backdrop-filter: blur(10px);
         }
         
-        /* Video call styles */
-        .video-container { 
+        /* Call interface styles */
+        .call-container { 
             position: relative; 
             width: 100%; 
-            height: 500px; 
+            height: 300px; 
             background: var(--dark-color);
             border-radius: 16px;
             overflow: hidden;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
         
-        #localVideo, #remoteVideo { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
+        .call-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            border: 4px solid rgba(255, 255, 255, 0.2);
         }
         
-        #localVideo { 
-            position: absolute; 
-            top: 20px; 
-            right: 20px; 
-            width: 220px; 
-            height: 165px; 
-            z-index: 10;
-            border: 3px solid rgba(255, 255, 255, 0.8);
-            border-radius: 12px;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        .call-avatar i {
+            font-size: 3rem;
+            color: white;
         }
         
         .call-controls { 
@@ -309,30 +312,6 @@
             border-left: 4px solid var(--gray-color);
         }
         
-        .online-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 10px;
-            box-shadow: 0 0 10px currentColor;
-        }
-        
-        .online {
-            background-color: var(--success-color);
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
-        }
-        
-        .offline {
-            background-color: var(--gray-color);
-        }
-        
         /* Tabs */
         .nav-pills .nav-link {
             border-radius: 12px;
@@ -371,20 +350,27 @@
             gap: 12px;
         }
         
-        .online-status {
-            width: 10px;
-            height: 10px;
+        .status-indicator {
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            background-color: var(--success-color);
-            box-shadow: 0 0 10px var(--success-color);
-            animation: pulse 2s infinite;
+            display: inline-block;
+            margin-right: 8px;
         }
         
-        .offline-status {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
+        .status-online {
+            background-color: var(--success-color);
+            box-shadow: 0 0 8px var(--success-color);
+        }
+        
+        .status-offline {
             background-color: var(--gray-color);
+        }
+        
+        .status-calling {
+            background-color: var(--warning-color);
+            box-shadow: 0 0 8px var(--warning-color);
+            animation: pulse 1.5s infinite;
         }
         
         .call-status {
@@ -459,13 +445,17 @@
         
         /* Responsive design */
         @media (max-width: 768px) {
-            .video-container {
-                height: 400px;
+            .call-container {
+                height: 250px;
             }
             
-            #localVideo {
-                width: 150px;
-                height: 112px;
+            .call-avatar {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .call-avatar i {
+                font-size: 2rem;
             }
             
             .btn-call {
@@ -529,28 +519,10 @@
             100% { transform: scale(1); }
         }
         
-        /* Status indicators */
-        .status-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-        }
-        
-        .status-online {
-            background-color: var(--success-color);
-            box-shadow: 0 0 8px var(--success-color);
-        }
-        
-        .status-offline {
-            background-color: var(--gray-color);
-        }
-        
-        .status-calling {
-            background-color: var(--warning-color);
-            box-shadow: 0 0 8px var(--warning-color);
-            animation: pulse 1.5s infinite;
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
         }
     </style>
 </head>
@@ -584,7 +556,7 @@
                                 <i class="fas fa-comments fa-4x" style="background: linear-gradient(135deg, #fff, #e0e0e0); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
                             </div>
                             <h2 class="card-title fw-bold">Welcome to Echo Pro</h2>
-                            <p class="text-light">Professional real-time communication</p>
+                            <p class="text-light">Chat and Voice Calls</p>
                         </div>
                         
                         <!-- Google Sign In Button -->
@@ -786,9 +758,6 @@
                                             <button id="startVoiceCall" class="btn btn-success btn-sm me-2 call-btn">
                                                 <i class="fas fa-phone me-1"></i>Voice Call
                                             </button>
-                                            <button id="startVideoCall" class="btn btn-primary btn-sm me-2 call-btn">
-                                                <i class="fas fa-video me-1"></i>Video Call
-                                            </button>
                                             <button id="endCall" class="btn btn-danger btn-sm hidden">
                                                 <i class="fas fa-phone-slash me-1"></i>End Call
                                             </button>
@@ -871,22 +840,21 @@
                         <div class="card glass-card">
                             <div class="card-header bg-transparent border-bottom-0">
                                 <h5 class="card-title mb-0 text-white">
-                                    <i class="fas fa-phone me-2"></i>Call in Progress
-                                    <span class="badge bg-info ms-2" id="callTypeBadge">Voice Call</span>
+                                    <i class="fas fa-phone me-2"></i>Voice Call in Progress
                                     <span class="badge bg-success ms-2" id="callStatusBadge">Connected</span>
                                 </h5>
                             </div>
                             <div class="card-body p-0">
-                                <div class="video-container">
+                                <div class="call-container">
                                     <div id="callDuration" class="call-duration hidden">00:00</div>
-                                    <video id="localVideo" autoplay muted playsinline></video>
-                                    <video id="remoteVideo" autoplay playsinline></video>
+                                    <div class="call-avatar">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <h4 class="text-white mb-2" id="callWithUser">Calling...</h4>
+                                    <p class="text-light" id="callStatusText">Connecting...</p>
                                     <div class="call-controls">
                                         <button id="muteAudio" class="btn-call btn-warning">
                                             <i class="fas fa-microphone"></i>
-                                        </button>
-                                        <button id="muteVideo" class="btn-call btn-warning">
-                                            <i class="fas fa-video"></i>
                                         </button>
                                         <button id="endCallBtn" class="btn-call btn-danger ringing-animation">
                                             <i class="fas fa-phone-slash"></i>
@@ -949,7 +917,6 @@
         let peerConnection = null;
         let localStream = null;
         let remoteStream = null;
-        let currentCallType = null;
         let userContacts = [];
         let isInCall = false;
         let chatHistoryLoaded = false;
@@ -997,7 +964,7 @@
                 <div class="text-center">
                     <div class="mb-3">
                         <i class="fas fa-phone fa-3x text-primary mb-2 ringing-animation"></i>
-                        <h5>Incoming ${callType} Call</h5>
+                        <h5>Incoming Voice Call</h5>
                         <p class="mb-2">From: <strong>${from}</strong></p>
                         <p class="text-muted">Click Answer to accept the call</p>
                     </div>
@@ -1078,11 +1045,8 @@
                             <button class="btn btn-sm btn-outline-light chat-with-user" data-email="${contact.email}">
                                 <i class="fas fa-comment"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-success call-user" data-email="${contact.email}" data-type="voice">
+                            <button class="btn btn-sm btn-outline-success call-user" data-email="${contact.email}">
                                 <i class="fas fa-phone"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary call-user" data-email="${contact.email}" data-type="video">
-                                <i class="fas fa-video"></i>
                             </button>
                         </div>
                     </div>
@@ -1107,8 +1071,7 @@
             contactsList.querySelectorAll('.call-user').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const email = e.target.closest('button').dataset.email;
-                    const callType = e.target.closest('button').dataset.type;
-                    startCallWithUser(email, callType === 'video');
+                    startCallWithUser(email);
                 });
             });
         }
@@ -1209,8 +1172,8 @@
             }
         }
 
-        // Start call with user
-        async function startCallWithUser(userEmail, isVideo) {
+        // Start voice call with user
+        async function startCallWithUser(userEmail) {
             if (!currentUser) return;
             
             try {
@@ -1221,7 +1184,6 @@
                     return;
                 }
                 
-                currentCallType = isVideo ? 'video' : 'voice';
                 showLoading();
                 
                 // Stop any existing streams
@@ -1229,7 +1191,7 @@
                     localStream.getTracks().forEach(track => track.stop());
                 }
                 
-                // Get user media with proper constraints
+                // Get user media with proper constraints for audio only
                 const constraints = {
                     audio: {
                         echoCancellation: true,
@@ -1237,15 +1199,11 @@
                         autoGainControl: true,
                         channelCount: 1
                     },
-                    video: isVideo ? {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        frameRate: { ideal: 30 }
-                    } : false
+                    video: false
                 };
                 
                 localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                console.log('🎤 Local stream obtained:', localStream.getTracks().map(t => t.kind));
+                console.log('🎤 Local audio stream obtained');
                 
                 // Setup peer connection with proper configuration
                 await setupPeerConnection();
@@ -1254,14 +1212,14 @@
                 socket.emit('start-call', {
                     userEmail: currentUser.email,
                     otherUserEmail: userEmail,
-                    callType: currentCallType,
                     connectionId: connectionId
                 });
                 
-                showCallInterface(isVideo);
-                document.getElementById('callTypeBadge').textContent = isVideo ? 'Video Call' : 'Voice Call';
+                showCallInterface();
                 document.getElementById('callStatusBadge').textContent = 'Calling...';
                 document.getElementById('callStatusBadge').className = 'badge bg-warning ms-2';
+                document.getElementById('callWithUser').textContent = `Calling ${userEmail}...`;
+                document.getElementById('callStatusText').textContent = 'Ringing...';
                 hideLoading();
                 showNotification(`Calling ${userEmail}...`, 'info');
                 isInCall = true;
@@ -1307,14 +1265,9 @@
                 
                 // Handle remote stream
                 peerConnection.ontrack = (event) => {
-                    console.log('📹 Remote track received:', event.track.kind);
+                    console.log('🔊 Remote audio track received');
                     if (event.streams && event.streams[0]) {
                         remoteStream = event.streams[0];
-                        const remoteVideo = document.getElementById('remoteVideo');
-                        remoteVideo.srcObject = remoteStream;
-                        
-                        // Play the remote video
-                        remoteVideo.play().catch(e => console.log('Remote video play error:', e));
                         
                         // Show notification for audio tracks
                         const audioTracks = remoteStream.getAudioTracks();
@@ -1323,6 +1276,7 @@
                             showNotification('Audio connected!', 'success');
                             document.getElementById('callStatusBadge').textContent = 'Connected';
                             document.getElementById('callStatusBadge').className = 'badge bg-success ms-2';
+                            document.getElementById('callStatusText').textContent = 'Connected';
                         }
                     }
                 };
@@ -1345,6 +1299,7 @@
                             showNotification('Call connected successfully!', 'success');
                             document.getElementById('callStatusBadge').textContent = 'Connected';
                             document.getElementById('callStatusBadge').className = 'badge bg-success ms-2';
+                            document.getElementById('callStatusText').textContent = 'Connected';
                             startCallTimer();
                             break;
                         case 'disconnected':
@@ -1352,6 +1307,7 @@
                             showNotification('Call disconnected', 'warning');
                             document.getElementById('callStatusBadge').textContent = 'Disconnected';
                             document.getElementById('callStatusBadge').className = 'badge bg-danger ms-2';
+                            document.getElementById('callStatusText').textContent = 'Disconnected';
                             stopCallTimer();
                             break;
                         case 'closed':
@@ -1372,7 +1328,7 @@
                 // Create and set local description
                 const offer = await peerConnection.createOffer({
                     offerToReceiveAudio: true,
-                    offerToReceiveVideo: currentCallType === 'video'
+                    offerToReceiveVideo: false
                 });
                 
                 await peerConnection.setLocalDescription(offer);
@@ -1439,12 +1395,9 @@
                 
                 // Handle remote stream
                 peerConnection.ontrack = (event) => {
-                    console.log('📹 Remote track received in answer:', event.track.kind);
+                    console.log('🔊 Remote audio track received in answer');
                     if (event.streams && event.streams[0]) {
                         remoteStream = event.streams[0];
-                        const remoteVideo = document.getElementById('remoteVideo');
-                        remoteVideo.srcObject = remoteStream;
-                        remoteVideo.play().catch(e => console.log('Remote video play error:', e));
                         
                         const audioTracks = remoteStream.getAudioTracks();
                         if (audioTracks.length > 0) {
@@ -1452,6 +1405,7 @@
                             showNotification('Audio connected!', 'success');
                             document.getElementById('callStatusBadge').textContent = 'Connected';
                             document.getElementById('callStatusBadge').className = 'badge bg-success ms-2';
+                            document.getElementById('callStatusText').textContent = 'Connected';
                         }
                     }
                 };
@@ -1801,8 +1755,8 @@
                         <div>
                             <strong class="text-white">${call.participants.filter(p => p !== currentUser.email)[0]}</strong>
                             <div class="small text-light">
-                                <i class="fas fa-${call.callType === 'video' ? 'video' : 'phone'} me-1"></i>
-                                ${call.callType} Call • ${formatDuration(call.duration)}
+                                <i class="fas fa-phone me-1"></i>
+                                Voice Call • ${formatDuration(call.duration)}
                             </div>
                             <div class="small text-muted">
                                 ${new Date(call.startedAt).toLocaleString()}
@@ -2002,6 +1956,8 @@
             showNotification('Call connected!', 'success');
             startCallTimer();
             isCallRinging = false;
+            document.getElementById('callWithUser').textContent = `In call with ${currentChatUser}`;
+            document.getElementById('callStatusText').textContent = 'Connected';
         });
 
         // Handle call ended
@@ -2098,11 +2054,10 @@
             try {
                 showLoading();
                 const data = window.incomingCallData;
-                currentCallType = data.callType;
                 currentChatUser = data.from;
                 currentCallId = data.callId;
                 
-                // Get user media
+                // Get user media for audio only
                 const constraints = {
                     audio: {
                         echoCancellation: true,
@@ -2110,18 +2065,10 @@
                         autoGainControl: true,
                         channelCount: 1
                     },
-                    video: data.callType === 'video' ? {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        frameRate: { ideal: 30 }
-                    } : false
+                    video: false
                 };
                 
                 localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                
-                if (data.callType === 'video') {
-                    document.getElementById('localVideo').srcObject = localStream;
-                }
                 
                 await setupPeerConnectionForAnswer();
                 
@@ -2131,10 +2078,11 @@
                     callId: data.callId
                 });
                 
-                showCallInterface(data.callType === 'video');
-                document.getElementById('callTypeBadge').textContent = data.callType === 'video' ? 'Video Call' : 'Voice Call';
+                showCallInterface();
                 document.getElementById('callStatusBadge').textContent = 'Connecting...';
                 document.getElementById('callStatusBadge').className = 'badge bg-warning ms-2';
+                document.getElementById('callWithUser').textContent = `In call with ${currentChatUser}`;
+                document.getElementById('callStatusText').textContent = 'Connecting...';
                 hideLoading();
                 showNotification('Call answered!', 'success');
                 isInCall = true;
@@ -2163,33 +2111,16 @@
             }
         }
 
-        function showCallInterface(isVideo) {
+        function showCallInterface() {
             document.getElementById('appTabs').classList.add('hidden');
             document.getElementById('callSection').classList.remove('hidden');
             document.getElementById('endCall').classList.remove('hidden');
-            
-            if (!isVideo) {
-                document.getElementById('localVideo').classList.add('hidden');
-            } else {
-                document.getElementById('localVideo').classList.remove('hidden');
-                if (localStream) {
-                    document.getElementById('localVideo').srcObject = localStream;
-                }
-            }
         }
 
         // Call buttons in chat section
         document.getElementById('startVoiceCall').addEventListener('click', () => {
             if (currentChatUser) {
-                startCallWithUser(currentChatUser, false);
-            } else {
-                showNotification('Please select a contact to call', 'warning');
-            }
-        });
-
-        document.getElementById('startVideoCall').addEventListener('click', () => {
-            if (currentChatUser) {
-                startCallWithUser(currentChatUser, true);
+                startCallWithUser(currentChatUser);
             } else {
                 showNotification('Please select a contact to call', 'warning');
             }
@@ -2222,12 +2153,6 @@
             document.getElementById('appTabs').classList.remove('hidden');
             document.getElementById('endCall').classList.add('hidden');
             
-            document.getElementById('localVideo').srcObject = null;
-            document.getElementById('remoteVideo').srcObject = null;
-            
-            // Reset video elements
-            document.getElementById('localVideo').classList.remove('hidden');
-            
             // Clear call data
             stopCallTimer();
             window.incomingCallData = null;
@@ -2254,21 +2179,6 @@
             }
         });
 
-        document.getElementById('muteVideo').addEventListener('click', function() {
-            if (localStream) {
-                const videoTracks = localStream.getVideoTracks();
-                let isMuted = false;
-                videoTracks.forEach(track => {
-                    track.enabled = !track.enabled;
-                    isMuted = !track.enabled;
-                });
-                this.classList.toggle('btn-danger', isMuted);
-                this.classList.toggle('btn-warning', !isMuted);
-                this.innerHTML = isMuted ? '<i class="fas fa-video-slash"></i>' : '<i class="fas fa-video"></i>';
-                showNotification(isMuted ? 'Video muted' : 'Video unmuted', 'info');
-            }
-        });
-
         // Load call history when history tab is clicked
         document.getElementById('history-tab').addEventListener('click', loadCallHistory);
 
@@ -2285,7 +2195,7 @@
             });
         });
 
-        console.log('🚀 Echo Pro App Loaded');
+        console.log('🚀 Echo Pro App Loaded - Chat & Voice Calls Only');
     </script>
 </body>
 </html>
