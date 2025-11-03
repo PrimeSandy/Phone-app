@@ -596,19 +596,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle call end
+  // Handle call end - FIXED DUPLICATE NOTIFICATIONS
   socket.on('end-call', (data) => {
-    const { toUser } = data;
+    const { toUser, connectionId } = data;
     
-    console.log(`📞 Call ended`);
+    console.log(`📞 Call ended from ${socket.userEmail} to ${toUser}`);
     
     if (toUser) {
       const targetSocketId = activeUsers.get(toUser)?.socketId;
       if (targetSocketId) {
         io.to(targetSocketId).emit('call-ended', {
+          from: socket.userEmail,
           timestamp: new Date()
         });
       }
+    }
+    
+    // Also notify all users in the connection room
+    if (connectionId) {
+      socket.to(connectionId).emit('call-ended', {
+        from: socket.userEmail,
+        timestamp: new Date()
+      });
     }
   });
 
