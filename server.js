@@ -50,7 +50,8 @@ const connectionRequestSchema = new mongoose.Schema({
   senderEmail: String,
   receiverEmail: String,
   status: { type: String, default: 'pending' },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  expiresAt: { type: Date, default: () => new Date(Date.now() + 24 * 60 * 60 * 1000) } // 24 hours expiry
 });
 
 const chatMessageSchema = new mongoose.Schema({
@@ -77,6 +78,20 @@ const activeUsers = new Map(); // email -> {socketId, lastSeen}
 const activeConnections = new Map(); // connectionId -> {users: [email1, email2], createdAt}
 const userConnectionsMap = new Map(); // userEmail -> [connectedUserEmails]
 
+// Clean up expired requests every hour
+setInterval(async () => {
+  try {
+    const result = await ConnectionRequest.deleteMany({
+      expiresAt: { $lt: new Date() }
+    });
+    if (result.deletedCount > 0) {
+      console.log(`🧹 Cleaned up ${result.deletedCount} expired connection requests`);
+    }
+  } catch (error) {
+    console.error('Error cleaning up expired requests:', error);
+  }
+}, 60 * 60 * 1000);
+
 // Routes
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
@@ -93,7 +108,31 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Send direct email request - SIMPLIFIED WITHOUT EMAIL
+// Check if users are already connected
+app.get('/api/check-connection/:user1/:user2', async (req, res) => {
+  try {
+    const { user1, user2 } = req.params;
+    
+    const userConnection1 = await UserConnection.findOne({ userEmail: user1 });
+    const userConnection2 = await UserConnection.findOne({ userEmail: user2 });
+    
+    const isConnected = userConnection1?.connectedUsers.includes(user2) || 
+                       userConnection2?.connectedUsers.includes(user1);
+    
+    res.json({
+      success: true,
+      isConnected
+    });
+  } catch (error) {
+    console.error('Error checking connection:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Send direct email request
 app.post('/api/send-email-request', async (req, res) => {
   try {
     const { senderEmail, receiverEmail } = req.body;
@@ -102,6 +141,37 @@ app.post('/api/send-email-request', async (req, res) => {
       return res.status(400).json({ 
         success: false, 
         error: 'Sender and receiver emails are required' 
+      });
+    }
+    
+    // Check if users are already connected
+    const connectionCheck = await UserConnection.findOne({ 
+      userEmail: senderEmail,
+      connectedUsers: receiverEmail 
+    });
+    
+    if (connectionCheck) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'You are already connected with this user' 
+      });
+    }
+    
+    // Check for existing pending request
+    const existingRequest = await ConnectionRequest.findOne({
+      senderEmail,
+      receiverEmail,
+      status: 'pending',
+      expiresAt: { $gt: new Date() }
+    });
+    
+    if (existingRequest) {
+      const shareableLink = `${BASE_URL}/?request=${existingRequest.requestId}`;
+      return res.json({
+        success: true,
+        requestId: existingRequest.requestId,
+        shareableLink,
+        message: 'Existing pending request found! Share this link: ' + shareableLink
       });
     }
     
@@ -115,7 +185,6 @@ app.post('/api/send-email-request', async (req, res) => {
     });
     await request.save();
     
-    // For now, just return the shareable link (email sending requires proper SMTP setup)
     const shareableLink = `${BASE_URL}/?request=${requestId}`;
     
     res.json({
@@ -143,6 +212,37 @@ app.post('/api/generate-request', async (req, res) => {
       return res.status(400).json({ 
         success: false, 
         error: 'Sender and receiver emails are required' 
+      });
+    }
+    
+    // Check if users are already connected
+    const connectionCheck = await UserConnection.findOne({ 
+      userEmail: senderEmail,
+      connectedUsers: receiverEmail 
+    });
+    
+    if (connectionCheck) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'You are already connected with this user' 
+      });
+    }
+    
+    // Check for existing pending request
+    const existingRequest = await ConnectionRequest.findOne({
+      senderEmail,
+      receiverEmail,
+      status: 'pending',
+      expiresAt: { $gt: new Date() }
+    });
+    
+    if (existingRequest) {
+      const shareableLink = `${BASE_URL}/?request=${existingRequest.requestId}`;
+      return res.json({
+        success: true,
+        requestId: existingRequest.requestId,
+        shareableLink,
+        message: 'Existing pending request found'
       });
     }
     
@@ -177,12 +277,15 @@ app.post('/api/generate-request', async (req, res) => {
 app.get('/api/request/:requestId', async (req, res) => {
   try {
     const requestId = req.params.requestId;
-    const request = await ConnectionRequest.findOne({ requestId });
+    const request = await ConnectionRequest.findOne({ 
+      requestId,
+      expiresAt: { $gt: new Date() }
+    });
     
     if (!request) {
       return res.status(404).json({ 
         success: false, 
-        error: 'Request not found' 
+        error: 'Request not found or expired' 
       });
     }
     
@@ -200,7 +303,7 @@ app.get('/api/request/:requestId', async (req, res) => {
   }
 });
 
-// Accept connection request - FIXED CONNECTION ISSUES
+// Accept connection request - IMPROVED
 app.post('/api/accept-request', async (req, res) => {
   try {
     const { requestId, receiverEmail } = req.body;
@@ -213,11 +316,27 @@ app.post('/api/accept-request', async (req, res) => {
     }
     
     // Update in database
-    const request = await ConnectionRequest.findOne({ requestId });
+    const request = await ConnectionRequest.findOne({ 
+      requestId,
+      expiresAt: { $gt: new Date() }
+    });
     if (!request) {
       return res.status(404).json({ 
         success: false, 
-        error: 'Request not found' 
+        error: 'Request not found or expired' 
+      });
+    }
+    
+    // Check if already connected
+    const existingConnection = await UserConnection.findOne({
+      userEmail: request.senderEmail,
+      connectedUsers: receiverEmail
+    });
+    
+    if (existingConnection) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'You are already connected with this user' 
       });
     }
     
@@ -225,8 +344,8 @@ app.post('/api/accept-request', async (req, res) => {
     request.status = 'accepted';
     await request.save();
     
-    // Create connection ID using both emails for consistency
-    const connectionId = `${request.senderEmail}_${receiverEmail}_${Date.now()}`;
+    // Create connection ID using both emails
+    const connectionId = generateConnectionId(request.senderEmail, receiverEmail);
     
     activeConnections.set(connectionId, {
       users: [request.senderEmail, receiverEmail],
@@ -248,7 +367,7 @@ app.post('/api/accept-request', async (req, res) => {
       io.to(senderSocketId).emit('request-accepted', {
         connectionId,
         receiverEmail,
-        message: `${receiverEmail} accepted your connection request`
+        message: `${receiverEmail} accepted your connection request!`
       });
       
       // Send updated contacts list to sender
@@ -353,6 +472,12 @@ app.get('/api/chat/:connectionId', async (req, res) => {
   }
 });
 
+// Helper function to generate consistent connection ID
+function generateConnectionId(user1, user2) {
+  const emails = [user1, user2].sort();
+  return `${emails[0]}_${emails[1]}`;
+}
+
 // Helper function to update user connections in memory
 function updateUserConnectionsMap(userEmail, connectedUserEmail) {
   if (!userConnectionsMap.has(userEmail)) {
@@ -406,12 +531,8 @@ async function getUserContacts(userEmail) {
 
 // Helper function to find connection between two users
 function findConnectionBetweenUsers(user1, user2) {
-  for (let [connectionId, connection] of activeConnections) {
-    if (connection.users.includes(user1) && connection.users.includes(user2)) {
-      return connectionId;
-    }
-  }
-  return null;
+  const connectionId = generateConnectionId(user1, user2);
+  return activeConnections.has(connectionId) ? connectionId : null;
 }
 
 // Socket.io connection handling
@@ -485,7 +606,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Handle chat messages
+  // Handle chat messages - FIXED REAL-TIME MESSAGING
   socket.on('send-message', async (data) => {
     try {
       const { connectionId, message, senderEmail } = data;
@@ -503,21 +624,22 @@ io.on('connection', (socket) => {
       });
       await chatMessage.save();
       
-      // Broadcast message to all users in the connection EXCEPT sender
-      socket.to(connectionId).emit('receive-message', {
+      // Create message data
+      const messageData = {
         id: chatMessage._id,
         senderEmail,
         message,
         timestamp: new Date(),
         type: 'text'
-      });
+      };
       
-      // Send confirmation to sender only
-      socket.emit('message-sent', {
-        id: chatMessage._id,
-        message,
-        timestamp: new Date()
-      });
+      // Send to sender (optimistic update confirmation)
+      socket.emit('message-sent', messageData);
+      
+      // Broadcast to other users in the connection
+      socket.to(connectionId).emit('receive-message', messageData);
+      
+      console.log(`💬 Message sent in ${connectionId} from ${senderEmail}: ${message}`);
       
     } catch (error) {
       console.error('Error sending message:', error);
@@ -525,7 +647,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle call initiation - FIXED CONNECTION FINDING
+  // Handle call initiation - IMPROVED WEBRTC
   socket.on('start-call', (data) => {
     const { userEmail, otherUserEmail, callType } = data;
     
@@ -583,6 +705,32 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Handle WebRTC offer
+  socket.on('webrtc-offer', (data) => {
+    const { offer, toUser } = data;
+    const targetSocketId = activeUsers.get(toUser)?.socketId;
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('webrtc-offer', {
+        offer,
+        from: socket.userEmail
+      });
+      console.log(`📞 WebRTC offer sent to ${toUser}`);
+    }
+  });
+
+  // Handle WebRTC answer
+  socket.on('webrtc-answer', (data) => {
+    const { answer, toUser } = data;
+    const targetSocketId = activeUsers.get(toUser)?.socketId;
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('webrtc-answer', {
+        answer,
+        from: socket.userEmail
+      });
+      console.log(`📞 WebRTC answer sent to ${toUser}`);
+    }
+  });
+
   // Handle ICE candidates
   socket.on('ice-candidate', (data) => {
     const { candidate, toUser } = data;
@@ -591,12 +739,12 @@ io.on('connection', (socket) => {
     if (targetSocketId) {
       io.to(targetSocketId).emit('ice-candidate', { 
         candidate,
-        timestamp: new Date()
+        from: socket.userEmail
       });
     }
   });
 
-  // Handle call end - FIXED DUPLICATE NOTIFICATIONS
+  // Handle call end
   socket.on('end-call', (data) => {
     const { toUser, connectionId } = data;
     
