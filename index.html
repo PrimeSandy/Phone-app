@@ -1,0 +1,1054 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echo - Real-Time Connect</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --secondary-color: #8b5cf6;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+        }
+        
+        .hidden { display: none !important; }
+        .chat-container { 
+            height: 400px; 
+            overflow-y: auto; 
+            border: 1px solid #e5e7eb; 
+            padding: 15px;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+        .message { 
+            margin-bottom: 12px; 
+            padding: 10px 15px; 
+            border-radius: 15px; 
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .own-message { 
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white; 
+            margin-left: auto;
+            margin-right: 10px;
+            border-bottom-right-radius: 5px;
+        }
+        .other-message { 
+            background-color: white; 
+            color: #374151; 
+            margin-right: auto;
+            margin-left: 10px;
+            border: 1px solid #e5e7eb;
+            border-bottom-left-radius: 5px;
+        }
+        .system-message {
+            background-color: #f3f4f6;
+            color: #6b7280;
+            text-align: center;
+            margin: 10px auto;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            max-width: 60%;
+        }
+        .video-container { 
+            position: relative; 
+            width: 100%; 
+            height: 400px; 
+            background: #1f2937;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #localVideo, #remoteVideo { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+        }
+        #localVideo { 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
+            width: 200px; 
+            height: 150px; 
+            z-index: 10;
+            border: 2px solid white;
+            border-radius: 10px;
+        }
+        .call-controls { 
+            position: absolute; 
+            bottom: 20px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            z-index: 10;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 50px;
+        }
+        .btn-call {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 0 10px;
+            border: none;
+            font-size: 1.2em;
+        }
+        .connection-card {
+            border-left: 4px solid var(--primary-color);
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        }
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5em;
+        }
+        .google-btn {
+            background: white;
+            color: #757575;
+            border: 1px solid #dadce0;
+        }
+        .google-btn:hover {
+            background: #f8f9fa;
+            border-color: #dadce0;
+        }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            min-width: 300px;
+        }
+        .call-notification {
+            background: white;
+            border: 2px solid var(--primary-color);
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-dark gradient-bg shadow">
+        <div class="container">
+            <span class="navbar-brand">
+                <i class="fas fa-comments me-2"></i>Echo Connect
+            </span>
+            <div id="userInfo" class="hidden">
+                <span class="navbar-text me-3" id="navUserEmail"></span>
+                <button id="signOut" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-sign-out-alt me-1"></i>Sign Out
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Notifications -->
+    <div id="notifications" class="notification"></div>
+
+    <div class="container-fluid py-4">
+        <!-- Firebase Auth Section -->
+        <div id="authSection" class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card shadow border-0">
+                    <div class="card-body p-5">
+                        <div class="text-center mb-4">
+                            <i class="fas fa-comments fa-3x gradient-text mb-3" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+                            <h2 class="card-title">Welcome to Echo</h2>
+                            <p class="text-muted">Real-time chat and video calls</p>
+                        </div>
+                        
+                        <!-- Google Sign In Button -->
+                        <div class="d-grid gap-2 mb-4">
+                            <button id="googleSignIn" class="btn google-btn btn-lg">
+                                <img src="https://developers.google.com/identity/images/g-logo.png" alt="Google" style="width: 20px; height: 20px; margin-right: 10px;">
+                                Continue with Google
+                            </button>
+                        </div>
+
+                        <div class="divider d-flex align-items-center my-4">
+                            <p class="text-center text-muted mx-3 mb-0">Or</p>
+                        </div>
+                        
+                        <!-- Email/Password Auth -->
+                        <div class="mb-3">
+                            <input type="email" id="authEmail" class="form-control form-control-lg" placeholder="Enter your email">
+                        </div>
+                        <div class="mb-3">
+                            <input type="password" id="authPassword" class="form-control form-control-lg" placeholder="Enter your password">
+                        </div>
+                        <div class="d-grid gap-2 mb-3">
+                            <button id="signInBtn" class="btn btn-primary btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                            </button>
+                            <button id="signUpBtn" class="btn btn-outline-primary btn-lg">
+                                <i class="fas fa-user-plus me-2"></i>Sign Up
+                            </button>
+                        </div>
+                        <div id="authMessage" class="alert hidden"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main App Section -->
+        <div id="appSection" class="hidden">
+            <!-- Connection Request Section -->
+            <div id="connectionSection">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card connection-card shadow h-100">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-link me-2"></i>Create Connection
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Your Email</label>
+                                    <input type="email" id="senderEmail" class="form-control" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Receiver's Email</label>
+                                    <input type="email" id="receiverEmail" class="form-control" placeholder="Enter receiver's email">
+                                </div>
+                                <button id="generateRequest" class="btn btn-primary w-100">
+                                    <i class="fas fa-plus-circle me-2"></i>Generate Connection Link
+                                </button>
+                                <div id="requestResult" class="mt-4 p-3 bg-light rounded hidden">
+                                    <h6 class="fw-semibold">Share this link:</h6>
+                                    <div class="input-group">
+                                        <input type="text" id="shareableLink" class="form-control" readonly>
+                                        <button id="copyLink" class="btn btn-outline-secondary">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                    <small class="text-muted mt-2 d-block">
+                                        Send this link to your friend to start chatting
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-4">
+                        <div class="card connection-card shadow h-100">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-user-check me-2"></i>Join Connection
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="pendingRequest" class="hidden">
+                                    <div class="alert alert-info">
+                                        <h6>Connection Request</h6>
+                                        <p class="mb-2">From: <strong id="requestSender"></strong></p>
+                                        <div class="d-grid gap-2">
+                                            <button id="acceptRequest" class="btn btn-success">
+                                                <i class="fas fa-check me-2"></i>Accept Request
+                                            </button>
+                                            <button id="rejectRequest" class="btn btn-outline-danger">
+                                                <i class="fas fa-times me-2"></i>Reject
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="noRequest" class="text-center py-4">
+                                    <i class="fas fa-envelope-open-text fa-2x text-muted mb-3"></i>
+                                    <p class="text-muted">Waiting for connection request...</p>
+                                    <small class="text-muted">When someone shares a link with you, it will appear here</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Section -->
+            <div id="chatSection" class="hidden">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card shadow">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-comments me-2"></i>Chat
+                                    <span id="connectionStatus" class="badge bg-success ms-2">Connected</span>
+                                </h5>
+                                <div>
+                                    <button id="startVoiceCall" class="btn btn-success btn-sm me-2">
+                                        <i class="fas fa-phone me-1"></i>Voice Call
+                                    </button>
+                                    <button id="startVideoCall" class="btn btn-info btn-sm me-2">
+                                        <i class="fas fa-video me-1"></i>Video Call
+                                    </button>
+                                    <button id="endCall" class="btn btn-danger btn-sm hidden">
+                                        <i class="fas fa-phone-slash me-1"></i>End Call
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="chatMessages" class="chat-container mb-3"></div>
+                                <div class="input-group">
+                                    <input type="text" id="messageInput" class="form-control form-control-lg" placeholder="Type your message...">
+                                    <button id="sendMessage" class="btn btn-primary">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Call Section -->
+            <div id="callSection" class="hidden">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card shadow">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-phone me-2"></i>Call in Progress
+                                </h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="video-container">
+                                    <video id="localVideo" autoplay muted></video>
+                                    <video id="remoteVideo" autoplay></video>
+                                    <div class="call-controls">
+                                        <button id="muteAudio" class="btn-call btn-warning">
+                                            <i class="fas fa-microphone"></i>
+                                        </button>
+                                        <button id="muteVideo" class="btn-call btn-warning">
+                                            <i class="fas fa-video"></i>
+                                        </button>
+                                        <button id="endCallBtn" class="btn-call btn-danger">
+                                            <i class="fas fa-phone-slash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="hidden position-fixed top-50 start-50 translate-middle">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Firebase and Socket.io -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyALXM9g6HkFHuHLYNXjZ417_9d6bkPGatc",
+            authDomain: "tracker-pts.firebaseapp.com",
+            projectId: "tracker-pts",
+            storageBucket: "tracker-pts.firebasestorage.app",
+            messagingSenderId: "237919442573",
+            appId: "1:237919442573:web:e3abad42a0a1f49f5334c4",
+            measurementId: "G-R5K7KNKMYS"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        // Socket.io connection
+        const socket = io({
+            transports: ['websocket', 'polling']
+        });
+
+        // DOM Elements
+        const authSection = document.getElementById('authSection');
+        const appSection = document.getElementById('appSection');
+        const userInfo = document.getElementById('userInfo');
+        const navUserEmail = document.getElementById('navUserEmail');
+        const signOutBtn = document.getElementById('signOut');
+        const connectionSection = document.getElementById('connectionSection');
+        const chatSection = document.getElementById('chatSection');
+        const callSection = document.getElementById('callSection');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const notifications = document.getElementById('notifications');
+
+        // Auth elements
+        const authEmail = document.getElementById('authEmail');
+        const authPassword = document.getElementById('authPassword');
+        const signInBtn = document.getElementById('signInBtn');
+        const signUpBtn = document.getElementById('signUpBtn');
+        const authMessage = document.getElementById('authMessage');
+        const googleSignInBtn = document.getElementById('googleSignIn');
+
+        // Application state
+        let currentUser = null;
+        let connectionId = null;
+        let peerConnection = null;
+        let localStream = null;
+        let currentCallType = null;
+        let otherUserEmail = null;
+
+        // Show notification
+        function showNotification(message, type = 'info', duration = 5000) {
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} alert-dismissible fade show`;
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            notifications.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, duration);
+        }
+
+        // Show call notification
+        function showCallNotification(from, callType) {
+            const callNotification = document.createElement('div');
+            callNotification.className = 'call-notification';
+            callNotification.innerHTML = `
+                <h6>Incoming ${callType} Call</h6>
+                <p>From: <strong>${from}</strong></p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success btn-sm answer-call">
+                        <i class="fas fa-phone me-1"></i>Answer
+                    </button>
+                    <button class="btn btn-danger btn-sm decline-call">
+                        <i class="fas fa-phone-slash me-1"></i>Decline
+                    </button>
+                </div>
+            `;
+            notifications.appendChild(callNotification);
+            
+            // Add event listeners
+            callNotification.querySelector('.answer-call').addEventListener('click', () => {
+                answerIncomingCall();
+                callNotification.remove();
+            });
+            
+            callNotification.querySelector('.decline-call').addEventListener('click', () => {
+                declineIncomingCall();
+                callNotification.remove();
+            });
+            
+            // Auto remove after 30 seconds
+            setTimeout(() => {
+                if (callNotification.parentNode) {
+                    callNotification.remove();
+                }
+            }, 30000);
+        }
+
+        // Show loading spinner
+        function showLoading() {
+            loadingSpinner.classList.remove('hidden');
+        }
+
+        // Hide loading spinner
+        function hideLoading() {
+            loadingSpinner.classList.add('hidden');
+        }
+
+        // Show message
+        function showMessage(message, type = 'info') {
+            authMessage.textContent = message;
+            authMessage.className = `alert alert-${type}`;
+            authMessage.classList.remove('hidden');
+            setTimeout(() => {
+                authMessage.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Google Sign In
+        googleSignInBtn.addEventListener('click', async () => {
+            try {
+                showLoading();
+                const provider = new firebase.auth.GoogleAuthProvider();
+                provider.addScope('email');
+                provider.addScope('profile');
+                
+                const result = await auth.signInWithPopup(provider);
+                showMessage('Successfully signed in with Google!', 'success');
+            } catch (error) {
+                console.error('Google sign in error:', error);
+                showMessage(error.message, 'danger');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Firebase Auth with Email/Password
+        signInBtn.addEventListener('click', async () => {
+            const email = authEmail.value;
+            const password = authPassword.value;
+            
+            if (!email || !password) {
+                showMessage('Please enter both email and password', 'danger');
+                return;
+            }
+
+            try {
+                showLoading();
+                await auth.signInWithEmailAndPassword(email, password);
+                showMessage('Successfully signed in!', 'success');
+            } catch (error) {
+                console.error('Sign in error:', error);
+                showMessage(error.message, 'danger');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        signUpBtn.addEventListener('click', async () => {
+            const email = authEmail.value;
+            const password = authPassword.value;
+            
+            if (!email || !password) {
+                showMessage('Please enter both email and password', 'danger');
+                return;
+            }
+
+            if (password.length < 6) {
+                showMessage('Password should be at least 6 characters', 'danger');
+                return;
+            }
+
+            try {
+                showLoading();
+                await auth.createUserWithEmailAndPassword(email, password);
+                showMessage('Account created successfully!', 'success');
+            } catch (error) {
+                console.error('Sign up error:', error);
+                showMessage(error.message, 'danger');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Firebase Auth State Listener
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = user;
+                navUserEmail.textContent = user.email;
+                document.getElementById('senderEmail').value = user.email;
+                authSection.classList.add('hidden');
+                appSection.classList.remove('hidden');
+                userInfo.classList.remove('hidden');
+                
+                // Register user with socket
+                socket.emit('register-user', { userEmail: user.email });
+                
+                // Check for pending request in URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const requestId = urlParams.get('request');
+                if (requestId) {
+                    checkPendingRequest(requestId);
+                }
+            } else {
+                currentUser = null;
+                authSection.classList.remove('hidden');
+                appSection.classList.add('hidden');
+                userInfo.classList.add('hidden');
+                // Clear URL parameters
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
+
+        // Sign out
+        signOutBtn.addEventListener('click', () => {
+            if (connectionId) {
+                socket.emit('end-call', { connectionId });
+            }
+            auth.signOut();
+        });
+
+        // Generate connection request
+        document.getElementById('generateRequest').addEventListener('click', async () => {
+            const senderEmail = document.getElementById('senderEmail').value;
+            const receiverEmail = document.getElementById('receiverEmail').value;
+            
+            if (!receiverEmail) {
+                alert('Please enter receiver email');
+                return;
+            }
+
+            try {
+                showLoading();
+                const response = await fetch('/api/generate-request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ senderEmail, receiverEmail })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    const requestResult = document.getElementById('requestResult');
+                    document.getElementById('shareableLink').value = result.shareableLink;
+                    requestResult.classList.remove('hidden');
+                    showNotification('Connection link generated successfully!', 'success');
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error generating request:', error);
+                alert('Failed to generate request');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Copy link
+        document.getElementById('copyLink').addEventListener('click', () => {
+            const linkInput = document.getElementById('shareableLink');
+            linkInput.select();
+            navigator.clipboard.writeText(linkInput.value);
+            showNotification('Link copied to clipboard!', 'success');
+        });
+
+        // Check pending request
+        async function checkPendingRequest(requestId) {
+            try {
+                showLoading();
+                const response = await fetch(`/api/request/${requestId}`);
+                const result = await response.json();
+                
+                if (result.success && result.request.status === 'pending') {
+                    document.getElementById('requestSender').textContent = result.request.senderEmail;
+                    document.getElementById('pendingRequest').classList.remove('hidden');
+                    document.getElementById('noRequest').classList.add('hidden');
+                    
+                    // Store request ID for acceptance
+                    document.getElementById('acceptRequest').dataset.requestId = requestId;
+                    otherUserEmail = result.request.senderEmail;
+                } else {
+                    alert('Invalid or expired request');
+                    // Clear URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            } catch (error) {
+                console.error('Error checking request:', error);
+                alert('Failed to check request');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Accept connection request
+        document.getElementById('acceptRequest').addEventListener('click', async () => {
+            const requestId = document.getElementById('acceptRequest').dataset.requestId;
+            const receiverEmail = currentUser.email;
+            
+            try {
+                showLoading();
+                const response = await fetch('/api/accept-request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requestId, receiverEmail })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    connectionId = result.connectionId;
+                    otherUserEmail = result.senderEmail;
+                    startConnection(connectionId, result.senderEmail);
+                    // Clear URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    showNotification('Connection established!', 'success');
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error accepting request:', error);
+                alert('Failed to accept request');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Reject request
+        document.getElementById('rejectRequest').addEventListener('click', () => {
+            document.getElementById('pendingRequest').classList.add('hidden');
+            document.getElementById('noRequest').classList.remove('hidden');
+            // Clear URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        });
+
+        // Start connection
+        function startConnection(connId, otherUser) {
+            connectionSection.classList.add('hidden');
+            chatSection.classList.remove('hidden');
+            
+            socket.emit('join-connection', {
+                connectionId: connId,
+                userEmail: currentUser.email
+            });
+            
+            // Load chat history
+            loadChatHistory(connId);
+            
+            displaySystemMessage(`Connected with ${otherUser}. Start chatting!`);
+            showNotification(`Connected with ${otherUser}`, 'success');
+        }
+
+        // Socket event listeners
+        socket.on('connect', () => {
+            console.log('✅ Connected to server');
+            document.getElementById('connectionStatus').className = 'badge bg-success ms-2';
+            document.getElementById('connectionStatus').textContent = 'Connected';
+            
+            // Re-register user if already logged in
+            if (currentUser) {
+                socket.emit('register-user', { userEmail: currentUser.email });
+            }
+        });
+
+        socket.on('disconnect', () => {
+            console.log('❌ Disconnected from server');
+            document.getElementById('connectionStatus').className = 'badge bg-danger ms-2';
+            document.getElementById('connectionStatus').textContent = 'Disconnected';
+        });
+
+        // When sender receives notification that receiver accepted
+        socket.on('request-accepted', (data) => {
+            console.log('✅ Request accepted:', data);
+            connectionId = data.connectionId;
+            otherUserEmail = data.receiverEmail;
+            startConnection(connectionId, data.receiverEmail);
+            showNotification(`${data.receiverEmail} accepted your connection request!`, 'success');
+        });
+
+        socket.on('receive-message', (data) => {
+            displayMessage(data.senderEmail, data.message, data.senderEmail !== currentUser.email);
+        });
+
+        socket.on('user-joined', (data) => {
+            displaySystemMessage(`${data.userEmail} joined the chat`);
+            showNotification(`${data.userEmail} joined the chat`, 'info');
+        });
+
+        socket.on('user-left', (data) => {
+            displaySystemMessage(`${data.userEmail} left the chat`);
+            showNotification(`${data.userEmail} left the chat`, 'warning');
+        });
+
+        socket.on('connection-joined', (data) => {
+            console.log('✅ Joined connection:', data.connectionId);
+        });
+
+        // Incoming call notification
+        socket.on('incoming-call', (data) => {
+            console.log('📞 Incoming call:', data);
+            showCallNotification(data.from, data.callType);
+            
+            // Store call data for answering
+            window.incomingCallData = data;
+        });
+
+        socket.on('call-answered', async (data) => {
+            console.log('✅ Call answered:', data);
+            await peerConnection.setRemoteDescription(data.answer);
+            showNotification('Call connected!', 'success');
+        });
+
+        socket.on('ice-candidate', async (data) => {
+            console.log('❄️ ICE candidate received');
+            await peerConnection.addIceCandidate(data.candidate);
+        });
+
+        socket.on('call-ended', (data) => {
+            console.log('📞 Call ended');
+            endCall();
+            showNotification('Call ended', 'info');
+        });
+
+        socket.on('error', (data) => {
+            console.error('Socket error:', data);
+            showNotification('Connection error: ' + data.message, 'danger');
+        });
+
+        // Send message
+        document.getElementById('sendMessage').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (message && connectionId) {
+                socket.emit('send-message', {
+                    connectionId,
+                    message,
+                    senderEmail: currentUser.email
+                });
+                
+                displayMessage(currentUser.email, message, false);
+                messageInput.value = '';
+            }
+        }
+
+        function displayMessage(sender, message, isOther) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isOther ? 'other-message' : 'own-message'}`;
+            
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            messageDiv.innerHTML = `
+                <div class="fw-semibold small">${sender}</div>
+                <div class="message-content">${message}</div>
+                <div class="text-end small opacity-75">${time}</div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function displaySystemMessage(message) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'system-message';
+            messageDiv.textContent = message;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function loadChatHistory(connId) {
+            try {
+                const response = await fetch(`/api/chat/${connId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    result.messages.forEach(msg => {
+                        displayMessage(
+                            msg.senderEmail, 
+                            msg.message, 
+                            msg.senderEmail !== currentUser.email
+                        );
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading chat history:', error);
+            }
+        }
+
+        // WebRTC Call Functions
+        document.getElementById('startVideoCall').addEventListener('click', () => startCall(true));
+        document.getElementById('startVoiceCall').addEventListener('click', () => startCall(false));
+
+        async function startCall(isVideo) {
+            if (!connectionId || !otherUserEmail) {
+                showNotification('No active connection', 'warning');
+                return;
+            }
+
+            try {
+                currentCallType = isVideo ? 'video' : 'voice';
+                showLoading();
+                
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: isVideo,
+                    audio: true
+                });
+                
+                if (isVideo) {
+                    document.getElementById('localVideo').srcObject = localStream;
+                }
+                
+                setupPeerConnection();
+                
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                socket.emit('start-call', {
+                    connectionId,
+                    userEmail: currentUser.email,
+                    offer,
+                    callType: currentCallType
+                });
+                
+                showCallInterface(isVideo);
+                hideLoading();
+                showNotification(`Calling ${otherUserEmail}...`, 'info');
+            } catch (error) {
+                console.error('Error starting call:', error);
+                showNotification('Failed to start call: ' + error.message, 'danger');
+                hideLoading();
+            }
+        }
+
+        function setupPeerConnection() {
+            peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            });
+            
+            // Add local stream
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+            }
+            
+            // Handle remote stream
+            peerConnection.ontrack = (event) => {
+                console.log('📹 Remote stream received');
+                document.getElementById('remoteVideo').srcObject = event.streams[0];
+            };
+            
+            // Handle ICE candidates
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate && otherUserEmail) {
+                    socket.emit('ice-candidate', {
+                        connectionId,
+                        candidate: event.candidate,
+                        toUser: otherUserEmail
+                    });
+                }
+            };
+        }
+
+        // Answer incoming call
+        async function answerIncomingCall() {
+            if (!window.incomingCallData) return;
+            
+            try {
+                showLoading();
+                const data = window.incomingCallData;
+                currentCallType = data.callType;
+                otherUserEmail = data.from;
+                connectionId = data.connectionId;
+                
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: data.callType === 'video',
+                    audio: true
+                });
+                
+                if (data.callType === 'video') {
+                    document.getElementById('localVideo').srcObject = localStream;
+                }
+                
+                setupPeerConnection();
+                
+                await peerConnection.setRemoteDescription(data.offer);
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                socket.emit('answer-call', {
+                    connectionId,
+                    answer,
+                    toUser: data.from
+                });
+                
+                showCallInterface(data.callType === 'video');
+                hideLoading();
+                showNotification('Call answered!', 'success');
+            } catch (error) {
+                console.error('Error answering call:', error);
+                showNotification('Failed to answer call: ' + error.message, 'danger');
+                hideLoading();
+            }
+        }
+
+        // Decline incoming call
+        function declineIncomingCall() {
+            if (window.incomingCallData) {
+                socket.emit('end-call', {
+                    connectionId: window.incomingCallData.connectionId,
+                    toUser: window.incomingCallData.from
+                });
+                showNotification('Call declined', 'info');
+            }
+        }
+
+        function showCallInterface(isVideo) {
+            chatSection.classList.add('hidden');
+            callSection.classList.remove('hidden');
+            document.getElementById('endCall').classList.remove('hidden');
+            
+            if (!isVideo) {
+                document.getElementById('localVideo').classList.add('hidden');
+            } else {
+                document.getElementById('localVideo').classList.remove('hidden');
+            }
+        }
+
+        document.getElementById('endCallBtn').addEventListener('click', endCall);
+        document.getElementById('endCall').addEventListener('click', endCall);
+
+        function endCall() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (peerConnection) {
+                peerConnection.close();
+            }
+            
+            if (connectionId && otherUserEmail) {
+                socket.emit('end-call', { 
+                    connectionId, 
+                    toUser: otherUserEmail 
+                });
+            }
+            
+            callSection.classList.add('hidden');
+            chatSection.classList.remove('hidden');
+            document.getElementById('endCall').classList.add('hidden');
+            
+            document.getElementById('localVideo').srcObject = null;
+            document.getElementById('remoteVideo').srcObject = null;
+            
+            // Reset video elements
+            document.getElementById('localVideo').classList.remove('hidden');
+            
+            // Clear incoming call data
+            window.incomingCallData = null;
+        }
+
+        // Call controls
+        document.getElementById('muteAudio').addEventListener('click', function() {
+            if (localStream) {
+                const audioTracks = localStream.getAudioTracks();
+                audioTracks.forEach(track => {
+                    track.enabled = !track.enabled;
+                });
+                this.classList.toggle('btn-danger');
+                this.classList.toggle('btn-warning');
+                this.innerHTML = track.enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+            }
+        });
+
+        document.getElementById('muteVideo').addEventListener('click', function() {
+            if (localStream) {
+                const videoTracks = localStream.getVideoTracks();
+                videoTracks.forEach(track => {
+                    track.enabled = !track.enabled;
+                });
+                this.classList.toggle('btn-danger');
+                this.classList.toggle('btn-warning');
+                this.innerHTML = track.enabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
+            }
+        });
+
+        console.log('🚀 Echo Connect App Loaded');
+    </script>
+</body>
+</html>
