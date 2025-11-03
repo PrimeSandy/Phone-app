@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const server = http.createServer(app);
@@ -44,6 +45,15 @@ mongoose.connect(MONGO_URI, {
   console.error('❌ MongoDB connection error:', err);
 });
 
+// Email transporter (for sending direct email requests)
+const transporter = nodemailer.createTransporter({
+  service: 'gmail',
+  auth: {
+    user: 'your-email@gmail.com', // Replace with your email
+    pass: 'your-app-password' // Replace with your app password
+  }
+});
+
 // MongoDB Schemas
 const connectionRequestSchema = new mongoose.Schema({
   requestId: String,
@@ -61,13 +71,20 @@ const chatMessageSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now }
 });
 
+const userConnectionSchema = new mongoose.Schema({
+  userEmail: String,
+  connectedUsers: [String], // List of connected user emails
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
 const ConnectionRequest = mongoose.model('ConnectionRequest', connectionRequestSchema);
 const ChatMessage = mongoose.model('ChatMessage', chatMessageSchema);
+const UserConnection = mongoose.model('UserConnection', userConnectionSchema);
 
 // Store active users and connections
-const activeUsers = new Map(); // email -> socketId
-const activeConnections = new Map(); // connectionId -> {users: [email1, email2]}
-const pendingRequests = new Map(); // requestId -> {senderEmail, receiverEmail}
+const activeUsers = new Map(); // email -> {socketId, lastSeen}
+const activeConnections = new Map(); // connectionId -> {users: [email1, email2], createdAt}
 
 // Routes
 app.get('/', (req, res) => {
@@ -85,7 +102,67 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Generate connection request
+// Send direct email request
+app.post('/api/send-email-request', async (req, res) => {
+  try {
+    const { senderEmail, receiverEmail } = req.body;
+    
+    if (!senderEmail || !receiverEmail) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Sender and receiver emails are required' 
+      });
+    }
+    
+    const requestId = uuidv4();
+    const shareableLink = `${BASE_URL}/?request=${requestId}`;
+    
+    // Save request to database
+    const request = new ConnectionRequest({
+      requestId,
+      senderEmail,
+      receiverEmail
+    });
+    await request.save();
+    
+    // Send email
+    const mailOptions = {
+      from: 'your-email@gmail.com',
+      to: receiverEmail,
+      subject: `Connection Request from ${senderEmail}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #6366f1;">Connection Request</h2>
+          <p>You have received a connection request from <strong>${senderEmail}</strong></p>
+          <p>Click the link below to accept the request and start chatting:</p>
+          <a href="${shareableLink}" style="background-color: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 16px 0;">
+            Accept Connection Request
+          </a>
+          <p>Or copy this link: ${shareableLink}</p>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+          <p style="color: #6b7280; font-size: 14px;">This is an automated message from Echo Connect.</p>
+        </div>
+      `
+    };
+    
+    await transporter.sendMail(mailOptions);
+    
+    res.json({
+      success: true,
+      requestId,
+      message: 'Connection request sent via email successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error sending email request:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to send email request'
+    });
+  }
+});
+
+// Generate connection request (link only)
 app.post('/api/generate-request', async (req, res) => {
   try {
     const { senderEmail, receiverEmail } = req.body;
@@ -104,15 +181,7 @@ app.post('/api/generate-request', async (req, res) => {
       senderEmail,
       receiverEmail
     });
-    
     await request.save();
-    
-    // Store in memory for quick access
-    pendingRequests.set(requestId, {
-      senderEmail,
-      receiverEmail,
-      status: 'pending'
-    });
     
     const shareableLink = `${BASE_URL}/?request=${requestId}`;
     
@@ -136,20 +205,7 @@ app.post('/api/generate-request', async (req, res) => {
 app.get('/api/request/:requestId', async (req, res) => {
   try {
     const requestId = req.params.requestId;
-    
-    // Check memory first, then database
-    let request = pendingRequests.get(requestId);
-    if (!request) {
-      const dbRequest = await ConnectionRequest.findOne({ requestId });
-      if (dbRequest) {
-        request = {
-          senderEmail: dbRequest.senderEmail,
-          receiverEmail: dbRequest.receiverEmail,
-          status: dbRequest.status
-        };
-        pendingRequests.set(requestId, request);
-      }
-    }
+    const request = await ConnectionRequest.findOne({ requestId });
     
     if (!request) {
       return res.status(404).json({ 
@@ -197,12 +253,6 @@ app.post('/api/accept-request', async (req, res) => {
     request.status = 'accepted';
     await request.save();
     
-    // Update in memory
-    if (pendingRequests.has(requestId)) {
-      pendingRequests.get(requestId).status = 'accepted';
-      pendingRequests.get(requestId).receiverEmail = receiverEmail;
-    }
-    
     // Create connection
     const connectionId = uuidv4();
     activeConnections.set(connectionId, {
@@ -211,14 +261,29 @@ app.post('/api/accept-request', async (req, res) => {
       requestId: requestId
     });
     
+    // Update user connections in database
+    await updateUserConnections(request.senderEmail, receiverEmail);
+    await updateUserConnections(receiverEmail, request.senderEmail);
+    
     // Notify sender that request was accepted
-    const senderSocketId = activeUsers.get(request.senderEmail);
+    const senderSocketId = activeUsers.get(request.senderEmail)?.socketId;
     if (senderSocketId) {
       io.to(senderSocketId).emit('request-accepted', {
         connectionId,
         receiverEmail,
         message: `${receiverEmail} accepted your connection request`
       });
+      
+      // Send updated contacts list to sender
+      const senderContacts = await getUserContacts(request.senderEmail);
+      io.to(senderSocketId).emit('contacts-updated', senderContacts);
+    }
+    
+    // Send updated contacts list to receiver
+    const receiverSocketId = activeUsers.get(receiverEmail)?.socketId;
+    if (receiverSocketId) {
+      const receiverContacts = await getUserContacts(receiverEmail);
+      io.to(receiverSocketId).emit('contacts-updated', receiverContacts);
     }
     
     res.json({
@@ -230,6 +295,23 @@ app.post('/api/accept-request', async (req, res) => {
     
   } catch (error) {
     console.error('Error accepting request:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Get user contacts
+app.get('/api/contacts/:userEmail', async (req, res) => {
+  try {
+    const contacts = await getUserContacts(req.params.userEmail);
+    res.json({
+      success: true,
+      contacts
+    });
+  } catch (error) {
+    console.error('Error fetching contacts:', error);
     res.status(500).json({ 
       success: false, 
       error: error.message 
@@ -257,19 +339,77 @@ app.get('/api/chat/:connectionId', async (req, res) => {
   }
 });
 
+// Helper function to update user connections
+async function updateUserConnections(userEmail, connectedUserEmail) {
+  let userConnection = await UserConnection.findOne({ userEmail });
+  
+  if (!userConnection) {
+    userConnection = new UserConnection({
+      userEmail,
+      connectedUsers: [connectedUserEmail]
+    });
+  } else {
+    if (!userConnection.connectedUsers.includes(connectedUserEmail)) {
+      userConnection.connectedUsers.push(connectedUserEmail);
+    }
+    userConnection.updatedAt = new Date();
+  }
+  
+  await userConnection.save();
+}
+
+// Helper function to get user contacts with online status
+async function getUserContacts(userEmail) {
+  const userConnection = await UserConnection.findOne({ userEmail });
+  if (!userConnection) return [];
+  
+  const contacts = [];
+  for (const connectedEmail of userConnection.connectedUsers) {
+    const isOnline = activeUsers.has(connectedEmail);
+    const lastSeen = activeUsers.get(connectedEmail)?.lastSeen || new Date();
+    
+    contacts.push({
+      email: connectedEmail,
+      isOnline,
+      lastSeen: lastSeen.toISOString()
+    });
+  }
+  
+  return contacts;
+}
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('🔗 User connected:', socket.id);
 
   // Register user
-  socket.on('register-user', (data) => {
+  socket.on('register-user', async (data) => {
     const { userEmail } = data;
     if (userEmail) {
-      activeUsers.set(userEmail, socket.id);
+      activeUsers.set(userEmail, {
+        socketId: socket.id,
+        lastSeen: new Date()
+      });
+      
       socket.userEmail = userEmail;
       console.log(`👤 User registered: ${userEmail} (${socket.id})`);
       
-      // Check if this user has any pending connections
+      // Send updated contacts list to all connected users
+      const contacts = await getUserContacts(userEmail);
+      socket.emit('contacts-updated', contacts);
+      
+      // Notify contacts that this user is online
+      for (const contact of contacts) {
+        const contactSocketId = activeUsers.get(contact.email)?.socketId;
+        if (contactSocketId) {
+          io.to(contactSocketId).emit('user-status-changed', {
+            email: userEmail,
+            isOnline: true
+          });
+        }
+      }
+      
+      // Auto-join existing connections
       for (let [connectionId, connection] of activeConnections) {
         if (connection.users.includes(userEmail)) {
           socket.join(connectionId);
@@ -309,13 +449,26 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Handle chat messages
+  // Handle chat messages - FIXED DUPLICATE MESSAGE ISSUE
   socket.on('send-message', async (data) => {
     try {
-      const { connectionId, message, senderEmail } = data;
+      const { connectionId, message, senderEmail, messageId } = data;
       
       if (!connectionId || !message || !senderEmail) {
         socket.emit('error', { message: 'Missing required fields' });
+        return;
+      }
+      
+      // Check if message already exists (prevent duplicates)
+      const existingMessage = await ChatMessage.findOne({ 
+        connectionId, 
+        senderEmail, 
+        message,
+        timestamp: { $gte: new Date(Date.now() - 5000) } // Check last 5 seconds
+      });
+      
+      if (existingMessage) {
+        console.log('⚠️ Duplicate message prevented:', message);
         return;
       }
       
@@ -327,13 +480,20 @@ io.on('connection', (socket) => {
       });
       await chatMessage.save();
       
-      // Broadcast message to all users in the connection
-      io.to(connectionId).emit('receive-message', {
+      // Broadcast message to all users in the connection EXCEPT sender
+      socket.to(connectionId).emit('receive-message', {
         id: chatMessage._id,
         senderEmail,
         message,
         timestamp: new Date(),
         type: 'text'
+      });
+      
+      // Send confirmation to sender only
+      socket.emit('message-sent', {
+        id: chatMessage._id,
+        message,
+        timestamp: new Date()
       });
       
     } catch (error) {
@@ -363,7 +523,7 @@ io.on('connection', (socket) => {
     }
     
     // Get the other user's socket ID
-    const otherUserSocketId = activeUsers.get(otherUser);
+    const otherUserSocketId = activeUsers.get(otherUser)?.socketId;
     if (!otherUserSocketId) {
       socket.emit('error', { message: 'Other user is offline' });
       return;
@@ -388,7 +548,7 @@ io.on('connection', (socket) => {
     console.log(`📞 Call answered for connection: ${connectionId}`);
     
     // Find the user who initiated the call
-    const callerSocketId = activeUsers.get(toUser);
+    const callerSocketId = activeUsers.get(toUser)?.socketId;
     if (callerSocketId) {
       io.to(callerSocketId).emit('call-answered', { 
         answer,
@@ -402,7 +562,7 @@ io.on('connection', (socket) => {
   socket.on('ice-candidate', (data) => {
     const { connectionId, candidate, toUser } = data;
     
-    const targetSocketId = activeUsers.get(toUser);
+    const targetSocketId = activeUsers.get(toUser)?.socketId;
     if (targetSocketId) {
       io.to(targetSocketId).emit('ice-candidate', { 
         candidate,
@@ -419,7 +579,7 @@ io.on('connection', (socket) => {
     console.log(`📞 Call ended in ${connectionId}`);
     
     if (toUser) {
-      const targetSocketId = activeUsers.get(toUser);
+      const targetSocketId = activeUsers.get(toUser)?.socketId;
       if (targetSocketId) {
         io.to(targetSocketId).emit('call-ended', {
           connectionId,
@@ -436,12 +596,36 @@ io.on('connection', (socket) => {
   });
 
   // Handle disconnect
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log('❌ User disconnected:', socket.id);
     
-    // Remove from active users
+    // Update last seen and remove from active users
     if (socket.userEmail) {
-      activeUsers.delete(socket.userEmail);
+      const userData = activeUsers.get(socket.userEmail);
+      if (userData) {
+        userData.lastSeen = new Date();
+        // Don't remove from activeUsers immediately, wait for timeout
+        setTimeout(() => {
+          if (activeUsers.get(socket.userEmail)?.socketId === socket.id) {
+            activeUsers.delete(socket.userEmail);
+            console.log(`👤 User removed: ${socket.userEmail}`);
+            
+            // Notify contacts that this user is offline
+            getUserContacts(socket.userEmail).then(contacts => {
+              for (const contact of contacts) {
+                const contactSocketId = activeUsers.get(contact.email)?.socketId;
+                if (contactSocketId) {
+                  io.to(contactSocketId).emit('user-status-changed', {
+                    email: socket.userEmail,
+                    isOnline: false,
+                    lastSeen: new Date().toISOString()
+                  });
+                }
+              }
+            });
+          }
+        }, 5000); // 5 second delay
+      }
     }
     
     // Notify connection members
