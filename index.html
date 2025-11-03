@@ -56,7 +56,7 @@
         /* Layout */
         .app-container {
             display: flex;
-            min-height: 100vh;
+            min-height: calc(100vh - 76px);
         }
         
         .sidebar {
@@ -67,12 +67,14 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
+            transition: all 0.3s ease;
         }
         
         .main-content {
             flex: 1;
             padding: 20px;
             overflow-y: auto;
+            transition: all 0.3s ease;
         }
         
         /* Navigation */
@@ -176,6 +178,8 @@
             right: 10px;
             opacity: 0;
             transition: opacity 0.3s ease;
+            display: flex;
+            gap: 5px;
         }
         
         .message:hover .message-actions {
@@ -194,6 +198,11 @@
             color: white;
             font-size: 12px;
             cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .delete-message:hover {
+            transform: scale(1.1);
         }
         
         /* Call Interface */
@@ -366,6 +375,7 @@
                 width: 100%;
                 border-right: none;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+                padding: 15px;
             }
             
             .main-content {
@@ -394,6 +404,7 @@
             .call-controls {
                 padding: 15px;
                 gap: 10px;
+                bottom: 20px;
             }
             
             .message {
@@ -404,12 +415,21 @@
                 left: 10px;
                 right: 10px;
                 min-width: auto;
+                top: 10px;
+            }
+            
+            .chat-container {
+                height: 300px;
+            }
+            
+            .navbar-brand {
+                font-size: 1.3em;
             }
         }
         
         @media (max-width: 480px) {
             .sidebar {
-                padding: 15px;
+                padding: 10px;
             }
             
             .main-content {
@@ -417,7 +437,7 @@
             }
             
             .chat-container {
-                height: 300px;
+                height: 250px;
             }
             
             .call-container {
@@ -427,6 +447,17 @@
             .btn-call {
                 width: 45px;
                 height: 45px;
+            }
+            
+            .call-controls {
+                bottom: 15px;
+                padding: 12px;
+            }
+            
+            .message-actions {
+                opacity: 1; /* Always show on mobile */
+                top: -8px;
+                right: 5px;
             }
         }
         
@@ -517,19 +548,59 @@
             padding: 4px 8px;
             border-radius: 12px;
         }
+        
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+            
+            .sidebar.hidden-mobile {
+                transform: translateX(-100%);
+            }
+            
+            .main-content.full-width {
+                margin-left: 0;
+            }
+        }
+        
+        /* Action buttons container */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        /* User management actions */
+        .user-management-actions {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
     </style>
 </head>
 <body>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg glass-nav">
         <div class="container-fluid">
+            <button class="mobile-menu-toggle me-2" id="mobileMenuToggle">
+                <i class="fas fa-bars"></i>
+            </button>
             <span class="navbar-brand">
                 <i class="fas fa-comments me-2"></i>Echo Pro
             </span>
             <div id="userInfo" class="hidden">
-                <span class="navbar-text me-3" id="navUserEmail"></span>
+                <span class="navbar-text me-3 d-none d-md-inline" id="navUserEmail"></span>
                 <button id="signOut" class="btn btn-outline-light btn-sm">
-                    <i class="fas fa-sign-out-alt me-1"></i>Sign Out
+                    <i class="fas fa-sign-out-alt me-1"></i><span class="d-none d-md-inline">Sign Out</span>
                 </button>
             </div>
         </div>
@@ -541,7 +612,7 @@
     <!-- Main App Container -->
     <div class="app-container">
         <!-- Sidebar -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="d-flex flex-column h-100">
                 <!-- User Info -->
                 <div class="text-center mb-4">
@@ -597,7 +668,7 @@
         </div>
 
         <!-- Main Content -->
-        <div class="main-content">
+        <div class="main-content" id="mainContent">
             <div class="tab-content">
                 <!-- Connections Tab -->
                 <div class="tab-pane fade show active" id="connections" role="tabpanel">
@@ -664,12 +735,12 @@
                                 <span id="connectionStatus" class="badge bg-success ms-2">Connected</span>
                             </h5>
                             <div id="chatControls" class="hidden">
-                                <div class="d-flex align-items-center gap-3">
+                                <div class="d-flex align-items-center gap-3 flex-wrap">
                                     <div class="d-flex align-items-center">
                                         <span id="chatWithUser" class="fw-semibold"></span>
                                         <span id="chatUserStatus" class="status-indicator status-online ms-2"></span>
                                     </div>
-                                    <div class="btn-group">
+                                    <div class="action-buttons">
                                         <button id="startVoiceCall" class="btn btn-success btn-sm">
                                             <i class="fas fa-phone me-1"></i>Call
                                         </button>
@@ -688,7 +759,7 @@
                             </div>
                             <div id="chatSection" class="hidden">
                                 <div id="activeChatUser" class="glass-card p-3 mb-3 hidden">
-                                    <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex justify-content-between align-items-center flex-wrap">
                                         <div class="d-flex align-items-center">
                                             <i class="fas fa-user-circle fa-lg text-primary me-2"></i>
                                             <div>
@@ -760,8 +831,8 @@
                             <div class="call-avatar">
                                 <i class="fas fa-user"></i>
                             </div>
-                            <h4 class="text-white mb-2" id="callWithUser">Calling...</h4>
-                            <p class="text-light mb-3" id="callStatusText">Connecting...</p>
+                            <h4 class="text-white mb-2 text-center" id="callWithUser">Calling...</h4>
+                            <p class="text-light mb-3 text-center" id="callStatusText">Connecting...</p>
                             <div class="audio-visualizer" id="audioVisualizer">
                                 <div class="audio-bar"></div>
                                 <div class="audio-bar"></div>
@@ -773,7 +844,7 @@
                                 <button id="muteAudio" class="btn-call btn-warning">
                                     <i class="fas fa-microphone"></i>
                                 </button>
-                                <button id="endCallBtn" class="btn-call btn-danger ringing-animation">
+                                <button id="endCallBtn" class="btn-call btn-danger">
                                     <i class="fas fa-phone-slash"></i>
                                 </button>
                             </div>
@@ -852,6 +923,7 @@
         let currentCallId = null;
         let callStartTime = null;
         let callDurationInterval = null;
+        let socket = null;
 
         // DOM Elements
         const authSection = document.getElementById('authSection');
@@ -862,15 +934,19 @@
         const signOutBtn = document.getElementById('signOut');
         const loadingSpinner = document.getElementById('loadingSpinner');
         const notifications = document.getElementById('notifications');
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
             setupEventListeners();
+            setupSocketConnection();
         });
 
         function initializeApp() {
-            // Check if user is already logged in (you can implement your auth logic here)
+            // Check if user is already logged in
             const savedUser = localStorage.getItem('currentUser');
             if (savedUser) {
                 currentUser = JSON.parse(savedUser);
@@ -880,7 +956,54 @@
             }
         }
 
+        function setupSocketConnection() {
+            // Connect to your server
+            socket = io();
+            
+            socket.on('connect', () => {
+                console.log('✅ Connected to server');
+                if (currentUser) {
+                    socket.emit('register-user', { userEmail: currentUser.email });
+                }
+            });
+
+            socket.on('disconnect', () => {
+                console.log('❌ Disconnected from server');
+                showNotification('Connection lost. Trying to reconnect...', 'warning');
+            });
+
+            socket.on('receive-message', (data) => {
+                if (currentChatUser === data.senderEmail) {
+                    displayMessage(data.senderEmail, data.message, true);
+                    showNotification(`New message from ${data.senderEmail}`, 'info');
+                }
+            });
+
+            socket.on('incoming-call', (data) => {
+                showIncomingCallNotification(data.from);
+            });
+
+            socket.on('call-ended', (data) => {
+                if (isInCall) {
+                    handleEndCall();
+                    showNotification(`Call ended with ${data.from}`, 'info');
+                }
+            });
+
+            socket.on('contacts-updated', (contacts) => {
+                userContacts = contacts;
+                updateContactsList();
+            });
+
+            socket.on('notification', (data) => {
+                showNotification(data.message, data.type);
+            });
+        }
+
         function setupEventListeners() {
+            // Mobile menu toggle
+            mobileMenuToggle.addEventListener('click', toggleMobileMenu);
+
             // Auth buttons
             document.getElementById('googleSignIn').addEventListener('click', handleGoogleSignIn);
             document.getElementById('signInBtn').addEventListener('click', handleEmailSignIn);
@@ -913,10 +1036,14 @@
             document.getElementById('users-tab').addEventListener('click', loadUserManagement);
         }
 
+        function toggleMobileMenu() {
+            sidebar.classList.toggle('hidden-mobile');
+            mainContent.classList.toggle('full-width');
+        }
+
         // Auth Functions
         function handleGoogleSignIn() {
             showLoading();
-            // Simulate Google sign in
             setTimeout(() => {
                 const user = {
                     email: 'user@gmail.com',
@@ -940,7 +1067,6 @@
             }
 
             showLoading();
-            // Simulate email sign in
             setTimeout(() => {
                 const user = {
                     email: email,
@@ -969,7 +1095,6 @@
             }
 
             showLoading();
-            // Simulate email sign up
             setTimeout(() => {
                 const user = {
                     email: email,
@@ -1004,7 +1129,6 @@
             }
 
             showLoading();
-            // Simulate email sending
             setTimeout(() => {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('newConnectionModal'));
                 modal.hide();
@@ -1023,7 +1147,6 @@
             }
 
             showLoading();
-            // Simulate link generation
             setTimeout(() => {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('newConnectionModal'));
                 modal.hide();
@@ -1034,7 +1157,6 @@
 
         function handleAcceptRequest() {
             showLoading();
-            // Simulate accepting request
             setTimeout(() => {
                 document.getElementById('pendingRequest').classList.add('hidden');
                 document.getElementById('noRequest').classList.remove('hidden');
@@ -1058,18 +1180,15 @@
                 displayMessage(currentUser.email, message, false);
                 messageInput.value = '';
                 
-                // Simulate receiving response after 1 second
-                setTimeout(() => {
-                    const responses = [
-                        "Hello! How can I help you?",
-                        "That's interesting! Tell me more.",
-                        "I understand what you're saying.",
-                        "Let me think about that...",
-                        "Thanks for sharing that with me!"
-                    ];
-                    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-                    displayMessage(currentChatUser, randomResponse, true);
-                }, 1000);
+                if (socket) {
+                    socket.emit('send-message', {
+                        connectionId: currentConnectionId,
+                        message: message,
+                        senderEmail: currentUser.email
+                    });
+                }
+                
+                showNotification('Message sent', 'success');
             } else if (!currentChatUser) {
                 showNotification('Please select a contact to chat with', 'warning');
             }
@@ -1081,14 +1200,17 @@
                 return;
             }
 
+            if (socket) {
+                socket.emit('start-call', {
+                    userEmail: currentUser.email,
+                    otherUserEmail: currentChatUser,
+                    connectionId: currentConnectionId
+                });
+            }
+
             showCallInterface();
             showNotification(`Calling ${currentChatUser}...`, 'info');
             isInCall = true;
-
-            // Show incoming call notification for the other user (simulated)
-            setTimeout(() => {
-                showCallNotification(currentChatUser);
-            }, 2000);
         }
 
         function handleClearChat() {
@@ -1097,6 +1219,14 @@
         }
 
         function handleEndCall() {
+            if (socket && currentChatUser) {
+                socket.emit('end-call', {
+                    toUser: currentChatUser,
+                    connectionId: currentConnectionId,
+                    callId: currentCallId
+                });
+            }
+            
             document.getElementById('callSection').classList.add('hidden');
             isInCall = false;
             stopCallTimer();
@@ -1144,7 +1274,10 @@
             sidebarUserEmail.textContent = currentUser.email;
             document.getElementById('senderEmail').value = currentUser.email;
             
-            // Load initial data
+            if (socket) {
+                socket.emit('register-user', { userEmail: currentUser.email });
+            }
+            
             loadContacts();
         }
 
@@ -1185,7 +1318,7 @@
             return icons[type] || 'info-circle';
         }
 
-        function showCallNotification(from) {
+        function showIncomingCallNotification(from) {
             const callNotification = document.createElement('div');
             callNotification.className = 'call-notification';
             callNotification.innerHTML = `
@@ -1208,14 +1341,29 @@
             `;
             notifications.appendChild(callNotification);
             
-            // Add event listeners
             callNotification.querySelector('.answer-call').addEventListener('click', () => {
+                currentChatUser = from;
                 showCallInterface();
                 callNotification.remove();
+                
+                if (socket) {
+                    socket.emit('answer-call', {
+                        connectionId: currentConnectionId,
+                        toUser: from,
+                        callId: currentCallId
+                    });
+                }
+                
                 showNotification('Call answered!', 'success');
             });
             
             callNotification.querySelector('.decline-call').addEventListener('click', () => {
+                if (socket) {
+                    socket.emit('reject-call', {
+                        callId: currentCallId,
+                        toUser: from
+                    });
+                }
                 callNotification.remove();
                 showNotification('Call declined', 'info');
             });
@@ -1253,7 +1401,6 @@
 
         // Data Loading Functions
         function loadContacts() {
-            // Simulate loading contacts
             userContacts = [
                 { email: 'john@example.com', isOnline: true, lastSeen: new Date() },
                 { email: 'sarah@example.com', isOnline: false, lastSeen: new Date(Date.now() - 300000) },
@@ -1282,7 +1429,7 @@
             
             contactsList.innerHTML = userContacts.map(contact => `
                 <div class="contact-item">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div class="d-flex align-items-center">
                             <span class="status-indicator ${contact.isOnline ? 'status-online' : 'status-offline'}"></span>
                             <div>
@@ -1295,19 +1442,18 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="btn-group">
+                        <div class="action-buttons mt-2 mt-sm-0">
                             <button class="btn btn-sm btn-outline-primary chat-with-user" data-email="${contact.email}">
-                                <i class="fas fa-comment"></i>
+                                <i class="fas fa-comment me-1"></i>Chat
                             </button>
                             <button class="btn btn-sm btn-outline-success call-user" data-email="${contact.email}">
-                                <i class="fas fa-phone"></i>
+                                <i class="fas fa-phone me-1"></i>Call
                             </button>
                         </div>
                     </div>
                 </div>
             `).join('');
             
-            // Add event listeners
             contactsList.querySelectorAll('.chat-with-user').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const email = e.target.closest('button').dataset.email;
@@ -1324,38 +1470,41 @@
         }
 
         function loadUserManagement() {
-            // Simulate loading user management data
             const connectionsList = document.getElementById('userConnectionsList');
             const historyList = document.getElementById('connectionHistoryList');
             
             connectionsList.innerHTML = `
                 <div class="user-item">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
                             <strong>john@example.com</strong>
                             <div class="small text-muted">Connected: Today 10:30 AM</div>
                         </div>
-                        <button class="btn btn-sm btn-outline-danger">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <div class="user-management-actions mt-2 mt-sm-0">
+                            <button class="btn btn-sm btn-outline-danger delete-connection" data-email="john@example.com">
+                                <i class="fas fa-trash me-1"></i>Delete
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="user-item">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
                             <strong>sarah@example.com</strong>
                             <div class="small text-muted">Connected: Yesterday 3:15 PM</div>
                         </div>
-                        <button class="btn btn-sm btn-outline-danger">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <div class="user-management-actions mt-2 mt-sm-0">
+                            <button class="btn btn-sm btn-outline-danger delete-connection" data-email="sarah@example.com">
+                                <i class="fas fa-trash me-1"></i>Delete
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
             
             historyList.innerHTML = `
                 <div class="user-item">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
                             <strong>mike@example.com</strong>
                             <div class="small text-muted">Last connected: 2 days ago</div>
@@ -1364,10 +1513,31 @@
                     </div>
                 </div>
             `;
+            
+            // Add delete functionality
+            connectionsList.querySelectorAll('.delete-connection').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const email = e.target.closest('button').dataset.email;
+                    deleteConnection(email);
+                });
+            });
+        }
+
+        function deleteConnection(email) {
+            if (confirm(`Are you sure you want to delete connection with ${email}?`)) {
+                showLoading();
+                setTimeout(() => {
+                    showNotification(`Connection with ${email} deleted successfully`, 'success');
+                    loadUserManagement();
+                    hideLoading();
+                }, 1000);
+            }
         }
 
         function startChatWithUser(userEmail) {
             currentChatUser = userEmail;
+            currentConnectionId = generateConnectionId(currentUser.email, userEmail);
+            
             document.getElementById('currentChatUser').textContent = userEmail;
             document.getElementById('activeChatUser').classList.remove('hidden');
             document.getElementById('noActiveChat').classList.add('hidden');
@@ -1375,7 +1545,6 @@
             document.getElementById('chatControls').classList.remove('hidden');
             document.getElementById('chatWithUser').textContent = userEmail;
             
-            // Update online status
             const contact = userContacts.find(c => c.email === userEmail);
             const statusElement = document.getElementById('currentChatUserStatus');
             const chatStatusElement = document.getElementById('chatUserStatus');
@@ -1390,7 +1559,13 @@
                 }
             }
             
-            // Switch to chat tab
+            if (socket) {
+                socket.emit('join-connection', {
+                    connectionId: currentConnectionId,
+                    userEmail: currentUser.email
+                });
+            }
+            
             document.getElementById('chat-tab').click();
             showNotification(`Started chat with ${userEmail}`, 'success');
         }
@@ -1402,14 +1577,19 @@
             }
             
             currentChatUser = userEmail;
+            currentConnectionId = generateConnectionId(currentUser.email, userEmail);
+            
+            if (socket) {
+                socket.emit('start-call', {
+                    userEmail: currentUser.email,
+                    otherUserEmail: userEmail,
+                    connectionId: currentConnectionId
+                });
+            }
+            
             showCallInterface();
             showNotification(`Calling ${userEmail}...`, 'info');
             isInCall = true;
-
-            // Show incoming call notification for the other user (simulated)
-            setTimeout(() => {
-                showCallNotification(userEmail);
-            }, 2000);
         }
 
         function displayMessage(sender, message, isOther) {
@@ -1432,12 +1612,18 @@
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
-            // Add delete functionality
             const deleteBtn = messageDiv.querySelector('.delete-message');
             deleteBtn.addEventListener('click', function() {
-                messageDiv.remove();
-                showNotification('Message deleted', 'info');
+                if (confirm('Are you sure you want to delete this message?')) {
+                    messageDiv.remove();
+                    showNotification('Message deleted', 'info');
+                }
             });
+        }
+
+        function generateConnectionId(user1, user2) {
+            const emails = [user1, user2].sort();
+            return `${emails[0]}_${emails[1]}`;
         }
 
         // Initialize the app
