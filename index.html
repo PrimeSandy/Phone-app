@@ -169,6 +169,13 @@
             padding: 20px;
             margin-top: 15px;
         }
+        .active-chat-user {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -247,7 +254,8 @@
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="contacts-tab" data-bs-toggle="tab" data-bs-target="#contacts" type="button" role="tab">
                         <i class="fas fa-users me-2"></i>Contacts
-                    </li>
+                    </button>
+                </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat" type="button" role="tab">
                         <i class="fas fa-comments me-2"></i>Chat
@@ -281,7 +289,7 @@
                                         <h6 class="fw-semibold mb-3">Choose Request Method:</h6>
                                         <div class="d-grid gap-2">
                                             <button id="sendEmailRequest" class="btn btn-success">
-                                                <i class="fas fa-envelope me-2"></i>Send Direct Email
+                                                <i class="fas fa-envelope me-2"></i>Create Connection Request
                                             </button>
                                             <button id="generateRequest" class="btn btn-primary">
                                                 <i class="fas fa-link me-2"></i>Generate Shareable Link
@@ -368,25 +376,38 @@
                                         <i class="fas fa-comments me-2"></i>Chat
                                         <span id="connectionStatus" class="badge bg-success ms-2">Connected</span>
                                     </h5>
-                                    <div>
-                                        <button id="startVoiceCall" class="btn btn-success btn-sm me-2">
-                                            <i class="fas fa-phone me-1"></i>Voice Call
-                                        </button>
-                                        <button id="startVideoCall" class="btn btn-info btn-sm me-2">
-                                            <i class="fas fa-video me-1"></i>Video Call
-                                        </button>
-                                        <button id="endCall" class="btn btn-danger btn-sm hidden">
-                                            <i class="fas fa-phone-slash me-1"></i>End Call
-                                        </button>
+                                    <div id="chatControls" class="hidden">
+                                        <div class="d-flex align-items-center">
+                                            <span class="me-3" id="chatWithUser"></span>
+                                            <button id="startVoiceCall" class="btn btn-success btn-sm me-2">
+                                                <i class="fas fa-phone me-1"></i>Voice Call
+                                            </button>
+                                            <button id="startVideoCall" class="btn btn-info btn-sm me-2">
+                                                <i class="fas fa-video me-1"></i>Video Call
+                                            </button>
+                                            <button id="endCall" class="btn btn-danger btn-sm hidden">
+                                                <i class="fas fa-phone-slash me-1"></i>End Call
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="card-body">
-                                    <div id="chatMessages" class="chat-container mb-3"></div>
-                                    <div class="input-group">
-                                        <input type="text" id="messageInput" class="form-control form-control-lg" placeholder="Type your message...">
-                                        <button id="sendMessage" class="btn btn-primary">
-                                            <i class="fas fa-paper-plane"></i>
-                                        </button>
+                                    <div id="noActiveChat" class="text-center py-4">
+                                        <i class="fas fa-comments fa-2x text-muted mb-3"></i>
+                                        <p class="text-muted">No active chat</p>
+                                        <small class="text-muted">Select a contact from Contacts tab to start chatting</small>
+                                    </div>
+                                    <div id="chatSection" class="hidden">
+                                        <div id="activeChatUser" class="active-chat-user hidden">
+                                            Chatting with: <strong id="currentChatUser"></strong>
+                                        </div>
+                                        <div id="chatMessages" class="chat-container mb-3"></div>
+                                        <div class="input-group">
+                                            <input type="text" id="messageInput" class="form-control form-control-lg" placeholder="Type your message...">
+                                            <button id="sendMessage" class="btn btn-primary">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -474,11 +495,11 @@
 
         // Application state
         let currentUser = null;
-        let connectionId = null;
+        let currentConnectionId = null;
+        let currentChatUser = null;
         let peerConnection = null;
         let localStream = null;
         let currentCallType = null;
-        let otherUserEmail = null;
         let userContacts = [];
 
         // Show notification
@@ -579,15 +600,99 @@
                             <span class="online-indicator ${contact.isOnline ? 'online' : 'offline'}"></span>
                             <strong>${contact.email}</strong>
                         </div>
-                        <div class="text-muted small">
-                            ${contact.isOnline ? 
-                                '<span class="text-success">Online</span>' : 
-                                `Last seen: ${new Date(contact.lastSeen).toLocaleTimeString()}`
-                            }
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-primary chat-with-user" data-email="${contact.email}">
+                                <i class="fas fa-comment"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-success call-user" data-email="${contact.email}" data-type="voice">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-info call-user" data-email="${contact.email}" data-type="video">
+                                <i class="fas fa-video"></i>
+                            </button>
                         </div>
+                    </div>
+                    <div class="text-muted small mt-1">
+                        ${contact.isOnline ? 
+                            '<span class="text-success">Online</span>' : 
+                            `Last seen: ${new Date(contact.lastSeen).toLocaleTimeString()}`
+                        }
                     </div>
                 </div>
             `).join('');
+            
+            // Add event listeners to chat buttons
+            contactsList.querySelectorAll('.chat-with-user').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const email = e.target.closest('button').dataset.email;
+                    startChatWithUser(email);
+                });
+            });
+            
+            // Add event listeners to call buttons
+            contactsList.querySelectorAll('.call-user').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const email = e.target.closest('button').dataset.email;
+                    const callType = e.target.closest('button').dataset.type;
+                    startCallWithUser(email, callType === 'video');
+                });
+            });
+        }
+
+        // Start chat with user
+        function startChatWithUser(userEmail) {
+            currentChatUser = userEmail;
+            document.getElementById('currentChatUser').textContent = userEmail;
+            document.getElementById('activeChatUser').classList.remove('hidden');
+            document.getElementById('noActiveChat').classList.add('hidden');
+            document.getElementById('chatSection').classList.remove('hidden');
+            document.getElementById('chatControls').classList.remove('hidden');
+            document.getElementById('chatWithUser').textContent = `Chatting with: ${userEmail}`;
+            
+            // Load chat history if available
+            if (currentConnectionId) {
+                loadChatHistory(currentConnectionId);
+            }
+            
+            // Switch to chat tab
+            document.getElementById('chat-tab').click();
+        }
+
+        // Start call with user
+        async function startCallWithUser(userEmail, isVideo) {
+            if (!currentUser) return;
+            
+            try {
+                currentCallType = isVideo ? 'video' : 'voice';
+                showLoading();
+                
+                // Get user media
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: isVideo,
+                    audio: true
+                });
+                
+                if (isVideo) {
+                    document.getElementById('localVideo').srcObject = localStream;
+                }
+                
+                setupPeerConnection();
+                
+                // Start the call
+                socket.emit('start-call', {
+                    userEmail: currentUser.email,
+                    otherUserEmail: userEmail,
+                    callType: currentCallType
+                });
+                
+                showCallInterface(isVideo);
+                hideLoading();
+                showNotification(`Calling ${userEmail}...`, 'info');
+            } catch (error) {
+                console.error('Error starting call:', error);
+                showNotification('Failed to start call: ' + error.message, 'danger');
+                hideLoading();
+            }
         }
 
         // Google Sign In
@@ -690,8 +795,8 @@
 
         // Sign out
         signOutBtn.addEventListener('click', () => {
-            if (connectionId) {
-                socket.emit('end-call', { connectionId });
+            if (currentConnectionId) {
+                socket.emit('end-call', { connectionId: currentConnectionId });
             }
             auth.signOut();
         });
@@ -716,14 +821,21 @@
                 
                 const result = await response.json();
                 if (result.success) {
-                    showNotification('Connection request sent via email successfully!', 'success');
+                    showNotification(result.message, 'success');
                     document.getElementById('receiverEmail').value = ''; // Clear input
+                    
+                    // Show shareable link
+                    if (result.shareableLink) {
+                        const requestResult = document.getElementById('requestResult');
+                        document.getElementById('shareableLink').value = result.shareableLink;
+                        requestResult.classList.remove('hidden');
+                    }
                 } else {
                     alert('Error: ' + result.error);
                 }
             } catch (error) {
                 console.error('Error sending email request:', error);
-                alert('Failed to send email request');
+                alert('Failed to send request');
             } finally {
                 hideLoading();
             }
@@ -787,10 +899,11 @@
                     
                     // Store request ID for acceptance
                     document.getElementById('acceptRequest').dataset.requestId = requestId;
-                    otherUserEmail = result.request.senderEmail;
                     
                     // Switch to connections tab
                     document.getElementById('connections-tab').click();
+                    
+                    showNotification('Connection request found!', 'info');
                 } else {
                     alert('Invalid or expired request');
                     // Clear URL
@@ -819,15 +932,14 @@
                 
                 const result = await response.json();
                 if (result.success) {
-                    connectionId = result.connectionId;
-                    otherUserEmail = result.senderEmail;
-                    startConnection(connectionId, result.senderEmail);
-                    // Clear URL
-                    window.history.replaceState({}, document.title, window.location.pathname);
+                    currentConnectionId = result.connectionId;
                     showNotification('Connection established!', 'success');
                     
-                    // Switch to chat tab
-                    document.getElementById('chat-tab').click();
+                    // Start chat with the sender
+                    startChatWithUser(result.senderEmail);
+                    
+                    // Clear URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
                 } else {
                     alert('Error: ' + result.error);
                 }
@@ -861,26 +973,6 @@
             }
         }
 
-        // Start connection
-        function startConnection(connId, otherUser) {
-            connectionId = connId;
-            otherUserEmail = otherUser;
-            
-            socket.emit('join-connection', {
-                connectionId: connId,
-                userEmail: currentUser.email
-            });
-            
-            // Load chat history
-            loadChatHistory(connId);
-            
-            displaySystemMessage(`Connected with ${otherUser}. Start chatting!`);
-            showNotification(`Connected with ${otherUser}`, 'success');
-            
-            // Switch to chat tab
-            document.getElementById('chat-tab').click();
-        }
-
         // Socket event listeners
         socket.on('connect', () => {
             console.log('✅ Connected to server');
@@ -902,11 +994,18 @@
         // When sender receives notification that receiver accepted
         socket.on('request-accepted', (data) => {
             console.log('✅ Request accepted:', data);
-            startConnection(data.connectionId, data.receiverEmail);
+            currentConnectionId = data.connectionId;
             showNotification(`${data.receiverEmail} accepted your connection request!`, 'success');
             
-            // Switch to chat tab
-            document.getElementById('chat-tab').click();
+            // Start chat with the receiver
+            startChatWithUser(data.receiverEmail);
+        });
+
+        // When connection is established
+        socket.on('connection-established', (data) => {
+            console.log('✅ Connection established:', data);
+            currentConnectionId = data.connectionId;
+            showNotification(data.message, 'success');
         });
 
         // When contacts list is updated
@@ -924,20 +1023,20 @@
             );
             updateContactsList(updatedContacts);
             
-            if (data.email === otherUserEmail) {
+            if (data.email === currentChatUser) {
                 const status = data.isOnline ? 'online' : 'offline';
                 showNotification(`${data.email} is now ${status}`, 'info');
             }
         });
 
-        // FIXED: Handle received messages - only show messages from others
+        // Handle received messages
         socket.on('receive-message', (data) => {
             if (data.senderEmail !== currentUser.email) {
                 displayMessage(data.senderEmail, data.message, true);
             }
         });
 
-        // FIXED: Handle message sent confirmation - only show own messages once
+        // Handle message sent confirmation
         socket.on('message-sent', (data) => {
             displayMessage(currentUser.email, data.message, false);
         });
@@ -961,9 +1060,20 @@
             window.incomingCallData = data;
         });
 
+        // Call initiated confirmation
+        socket.on('call-initiated', (data) => {
+            console.log('✅ Call initiated:', data);
+            showNotification(`Calling ${data.to}...`, 'info');
+        });
+
+        // Call error
+        socket.on('call-error', (data) => {
+            console.error('❌ Call error:', data);
+            showNotification(data.message, 'danger');
+        });
+
         socket.on('call-answered', async (data) => {
             console.log('✅ Call answered:', data);
-            await peerConnection.setRemoteDescription(data.answer);
             showNotification('Call connected!', 'success');
         });
 
@@ -983,7 +1093,7 @@
             showNotification('Connection error: ' + data.message, 'danger');
         });
 
-        // Send message - FIXED DUPLICATE MESSAGE ISSUE
+        // Send message
         document.getElementById('sendMessage').addEventListener('click', sendMessage);
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
@@ -993,18 +1103,17 @@
             const messageInput = document.getElementById('messageInput');
             const message = messageInput.value.trim();
             
-            if (message && connectionId) {
-                const messageId = Date.now().toString(); // Unique ID for each message
-                
+            if (message && currentConnectionId && currentChatUser) {
                 socket.emit('send-message', {
-                    connectionId,
+                    connectionId: currentConnectionId,
                     message,
-                    senderEmail: currentUser.email,
-                    messageId
+                    senderEmail: currentUser.email
                 });
                 
                 // Clear input immediately, message will appear via 'message-sent' event
                 messageInput.value = '';
+            } else {
+                showNotification('Please select a contact to chat with', 'warning');
             }
         }
 
@@ -1055,51 +1164,7 @@
             }
         }
 
-        // WebRTC Call Functions
-        document.getElementById('startVideoCall').addEventListener('click', () => startCall(true));
-        document.getElementById('startVoiceCall').addEventListener('click', () => startCall(false));
-
-        async function startCall(isVideo) {
-            if (!connectionId || !otherUserEmail) {
-                showNotification('No active connection', 'warning');
-                return;
-            }
-
-            try {
-                currentCallType = isVideo ? 'video' : 'voice';
-                showLoading();
-                
-                localStream = await navigator.mediaDevices.getUserMedia({
-                    video: isVideo,
-                    audio: true
-                });
-                
-                if (isVideo) {
-                    document.getElementById('localVideo').srcObject = localStream;
-                }
-                
-                setupPeerConnection();
-                
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-                
-                socket.emit('start-call', {
-                    connectionId,
-                    userEmail: currentUser.email,
-                    offer,
-                    callType: currentCallType
-                });
-                
-                showCallInterface(isVideo);
-                hideLoading();
-                showNotification(`Calling ${otherUserEmail}...`, 'info');
-            } catch (error) {
-                console.error('Error starting call:', error);
-                showNotification('Failed to start call: ' + error.message, 'danger');
-                hideLoading();
-            }
-        }
-
+        // WebRTC Functions
         function setupPeerConnection() {
             peerConnection = new RTCPeerConnection({
                 iceServers: [
@@ -1123,11 +1188,10 @@
             
             // Handle ICE candidates
             peerConnection.onicecandidate = (event) => {
-                if (event.candidate && otherUserEmail) {
+                if (event.candidate && currentChatUser) {
                     socket.emit('ice-candidate', {
-                        connectionId,
                         candidate: event.candidate,
-                        toUser: otherUserEmail
+                        toUser: currentChatUser
                     });
                 }
             };
@@ -1141,8 +1205,7 @@
                 showLoading();
                 const data = window.incomingCallData;
                 currentCallType = data.callType;
-                otherUserEmail = data.from;
-                connectionId = data.connectionId;
+                currentChatUser = data.from;
                 
                 localStream = await navigator.mediaDevices.getUserMedia({
                     video: data.callType === 'video',
@@ -1155,13 +1218,8 @@
                 
                 setupPeerConnection();
                 
-                await peerConnection.setRemoteDescription(data.offer);
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                
                 socket.emit('answer-call', {
-                    connectionId,
-                    answer,
+                    connectionId: data.connectionId,
                     toUser: data.from
                 });
                 
@@ -1179,7 +1237,6 @@
         function declineIncomingCall() {
             if (window.incomingCallData) {
                 socket.emit('end-call', {
-                    connectionId: window.incomingCallData.connectionId,
                     toUser: window.incomingCallData.from
                 });
                 showNotification('Call declined', 'info');
@@ -1209,10 +1266,9 @@
                 peerConnection.close();
             }
             
-            if (connectionId && otherUserEmail) {
+            if (currentChatUser) {
                 socket.emit('end-call', { 
-                    connectionId, 
-                    toUser: otherUserEmail 
+                    toUser: currentChatUser 
                 });
             }
             
