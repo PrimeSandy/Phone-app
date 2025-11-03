@@ -50,8 +50,9 @@ const connectionRequestSchema = new mongoose.Schema({
   senderEmail: String,
   receiverEmail: String,
   status: { type: String, default: 'pending' },
+  linkType: { type: String, default: '24hours' }, // 'permanent' or '24hours'
   createdAt: { type: Date, default: Date.now },
-  expiresAt: { type: Date, default: () => new Date(Date.now() + 24 * 60 * 60 * 1000) } // 24 hours expiry
+  expiresAt: { type: Date }
 });
 
 const chatMessageSchema = new mongoose.Schema({
@@ -65,24 +66,50 @@ const chatMessageSchema = new mongoose.Schema({
 const userConnectionSchema = new mongoose.Schema({
   userEmail: String,
   connectedUsers: [String],
+  connectionHistory: [{
+    userEmail: String,
+    connectedAt: Date,
+    connectionType: String
+  }],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
+});
+
+const callHistorySchema = new mongoose.Schema({
+  connectionId: String,
+  participants: [String],
+  callType: String,
+  startedAt: Date,
+  endedAt: Date,
+  duration: Number,
+  status: String
 });
 
 const ConnectionRequest = mongoose.model('ConnectionRequest', connectionRequestSchema);
 const ChatMessage = mongoose.model('ChatMessage', chatMessageSchema);
 const UserConnection = mongoose.model('UserConnection', userConnectionSchema);
+const CallHistory = mongoose.model('CallHistory', callHistorySchema);
 
 // Store active users and connections
-const activeUsers = new Map(); // email -> {socketId, lastSeen}
-const activeConnections = new Map(); // connectionId -> {users: [email1, email2], createdAt}
-const userConnectionsMap = new Map(); // userEmail -> [connectedUserEmails]
+const activeUsers = new Map();
+const activeConnections = new Map();
+const userConnectionsMap = new Map();
+const activeCalls = new Map();
+
+// Set expiration date based on link type
+function getExpirationDate(linkType) {
+  if (linkType === 'permanent') {
+    return new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
+  }
+  return new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+}
 
 // Clean up expired requests every hour
 setInterval(async () => {
   try {
     const result = await ConnectionRequest.deleteMany({
-      expiresAt: { $lt: new Date() }
+      expiresAt: { $lt: new Date() },
+      linkType: '24hours'
     });
     if (result.deletedCount > 0) {
       console.log(`🧹 Cleaned up ${result.deletedCount} expired connection requests`);
@@ -135,7 +162,7 @@ app.get('/api/check-connection/:user1/:user2', async (req, res) => {
 // Send direct email request
 app.post('/api/send-email-request', async (req, res) => {
   try {
-    const { senderEmail, receiverEmail } = req.body;
+    const { senderEmail, receiverEmail, linkType = '24hours' } = req.body;
     
     if (!senderEmail || !receiverEmail) {
       return res.status(400).json({ 
@@ -157,31 +184,16 @@ app.post('/api/send-email-request', async (req, res) => {
       });
     }
     
-    // Check for existing pending request
-    const existingRequest = await ConnectionRequest.findOne({
-      senderEmail,
-      receiverEmail,
-      status: 'pending',
-      expiresAt: { $gt: new Date() }
-    });
-    
-    if (existingRequest) {
-      const shareableLink = `${BASE_URL}/?request=${existingRequest.requestId}`;
-      return res.json({
-        success: true,
-        requestId: existingRequest.requestId,
-        shareableLink,
-        message: 'Existing pending request found! Share this link: ' + shareableLink
-      });
-    }
-    
     const requestId = uuidv4();
+    const expiresAt = getExpirationDate(linkType);
     
     // Save request to database
     const request = new ConnectionRequest({
       requestId,
       senderEmail,
-      receiverEmail
+      receiverEmail,
+      linkType,
+      expiresAt
     });
     await request.save();
     
@@ -191,7 +203,9 @@ app.post('/api/send-email-request', async (req, res) => {
       success: true,
       requestId,
       shareableLink,
-      message: 'Connection request created! Share this link manually: ' + shareableLink
+      linkType,
+      expiresAt,
+      message: `Connection request created! This link is ${linkType === 'permanent' ? 'permanent' : 'valid for 24 hours'}`
     });
     
   } catch (error) {
@@ -206,7 +220,7 @@ app.post('/api/send-email-request', async (req, res) => {
 // Generate connection request (link only)
 app.post('/api/generate-request', async (req, res) => {
   try {
-    const { senderEmail, receiverEmail } = req.body;
+    const { senderEmail, receiverEmail, linkType = '24hours' } = req.body;
     
     if (!senderEmail || !receiverEmail) {
       return res.status(400).json({ 
@@ -228,30 +242,15 @@ app.post('/api/generate-request', async (req, res) => {
       });
     }
     
-    // Check for existing pending request
-    const existingRequest = await ConnectionRequest.findOne({
-      senderEmail,
-      receiverEmail,
-      status: 'pending',
-      expiresAt: { $gt: new Date() }
-    });
-    
-    if (existingRequest) {
-      const shareableLink = `${BASE_URL}/?request=${existingRequest.requestId}`;
-      return res.json({
-        success: true,
-        requestId: existingRequest.requestId,
-        shareableLink,
-        message: 'Existing pending request found'
-      });
-    }
-    
     const requestId = uuidv4();
+    const expiresAt = getExpirationDate(linkType);
     
     const request = new ConnectionRequest({
       requestId,
       senderEmail,
-      receiverEmail
+      receiverEmail,
+      linkType,
+      expiresAt
     });
     await request.save();
     
@@ -261,6 +260,8 @@ app.post('/api/generate-request', async (req, res) => {
       success: true,
       requestId,
       shareableLink,
+      linkType,
+      expiresAt,
       message: 'Connection request generated successfully'
     });
     
@@ -279,7 +280,10 @@ app.get('/api/request/:requestId', async (req, res) => {
     const requestId = req.params.requestId;
     const request = await ConnectionRequest.findOne({ 
       requestId,
-      expiresAt: { $gt: new Date() }
+      $or: [
+        { linkType: 'permanent' },
+        { expiresAt: { $gt: new Date() } }
+      ]
     });
     
     if (!request) {
@@ -303,7 +307,7 @@ app.get('/api/request/:requestId', async (req, res) => {
   }
 });
 
-// Accept connection request - IMPROVED
+// Accept connection request
 app.post('/api/accept-request', async (req, res) => {
   try {
     const { requestId, receiverEmail } = req.body;
@@ -318,7 +322,10 @@ app.post('/api/accept-request', async (req, res) => {
     // Update in database
     const request = await ConnectionRequest.findOne({ 
       requestId,
-      expiresAt: { $gt: new Date() }
+      $or: [
+        { linkType: 'permanent' },
+        { expiresAt: { $gt: new Date() } }
+      ]
     });
     if (!request) {
       return res.status(404).json({ 
@@ -350,12 +357,13 @@ app.post('/api/accept-request', async (req, res) => {
     activeConnections.set(connectionId, {
       users: [request.senderEmail, receiverEmail],
       createdAt: new Date(),
-      requestId: requestId
+      requestId: requestId,
+      linkType: request.linkType
     });
     
     // Update user connections in database and memory
-    await updateUserConnections(request.senderEmail, receiverEmail);
-    await updateUserConnections(receiverEmail, request.senderEmail);
+    await updateUserConnections(request.senderEmail, receiverEmail, request.linkType);
+    await updateUserConnections(receiverEmail, request.senderEmail, request.linkType);
     
     // Update memory map
     updateUserConnectionsMap(request.senderEmail, receiverEmail);
@@ -367,7 +375,8 @@ app.post('/api/accept-request', async (req, res) => {
       io.to(senderSocketId).emit('request-accepted', {
         connectionId,
         receiverEmail,
-        message: `${receiverEmail} accepted your connection request!`
+        linkType: request.linkType,
+        message: `${receiverEmail} accepted your ${request.linkType} connection request!`
       });
       
       // Send updated contacts list to sender
@@ -385,7 +394,8 @@ app.post('/api/accept-request', async (req, res) => {
       io.to(receiverSocketId).emit('connection-established', {
         connectionId,
         senderEmail: request.senderEmail,
-        message: `Connected with ${request.senderEmail}`
+        linkType: request.linkType,
+        message: `Connected with ${request.senderEmail} (${request.linkType} connection)`
       });
     }
     
@@ -393,6 +403,7 @@ app.post('/api/accept-request', async (req, res) => {
       success: true,
       connectionId,
       senderEmail: request.senderEmail,
+      linkType: request.linkType,
       message: 'Connection established successfully'
     });
     
@@ -417,7 +428,8 @@ app.get('/api/user-connections/:userEmail', async (req, res) => {
         connections.push({
           connectionId,
           otherUser,
-          isOnline: activeUsers.has(otherUser)
+          isOnline: activeUsers.has(otherUser),
+          linkType: connection.linkType
         });
       }
     }
@@ -472,6 +484,26 @@ app.get('/api/chat/:connectionId', async (req, res) => {
   }
 });
 
+// Get call history
+app.get('/api/call-history/:userEmail', async (req, res) => {
+  try {
+    const history = await CallHistory.find({
+      participants: req.params.userEmail
+    }).sort({ startedAt: -1 }).limit(50);
+    
+    res.json({
+      success: true,
+      history
+    });
+  } catch (error) {
+    console.error('Error fetching call history:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Helper function to generate consistent connection ID
 function generateConnectionId(user1, user2) {
   const emails = [user1, user2].sort();
@@ -491,17 +523,27 @@ function updateUserConnectionsMap(userEmail, connectedUserEmail) {
 }
 
 // Helper function to update user connections in database
-async function updateUserConnections(userEmail, connectedUserEmail) {
+async function updateUserConnections(userEmail, connectedUserEmail, connectionType) {
   let userConnection = await UserConnection.findOne({ userEmail });
   
   if (!userConnection) {
     userConnection = new UserConnection({
       userEmail,
-      connectedUsers: [connectedUserEmail]
+      connectedUsers: [connectedUserEmail],
+      connectionHistory: [{
+        userEmail: connectedUserEmail,
+        connectedAt: new Date(),
+        connectionType: connectionType
+      }]
     });
   } else {
     if (!userConnection.connectedUsers.includes(connectedUserEmail)) {
       userConnection.connectedUsers.push(connectedUserEmail);
+      userConnection.connectionHistory.push({
+        userEmail: connectedUserEmail,
+        connectedAt: new Date(),
+        connectionType: connectionType
+      });
     }
     userConnection.updatedAt = new Date();
   }
@@ -518,11 +560,15 @@ async function getUserContacts(userEmail) {
   for (const connectedEmail of userConnection.connectedUsers) {
     const isOnline = activeUsers.has(connectedEmail);
     const lastSeen = activeUsers.get(connectedEmail)?.lastSeen || new Date();
+    const connectionInfo = userConnection.connectionHistory.find(
+      hist => hist.userEmail === connectedEmail
+    );
     
     contacts.push({
       email: connectedEmail,
       isOnline,
-      lastSeen: lastSeen.toISOString()
+      lastSeen: lastSeen.toISOString(),
+      connectionType: connectionInfo?.connectionType || '24hours'
     });
   }
   
@@ -554,6 +600,12 @@ io.on('connection', (socket) => {
       // Send updated contacts list
       const contacts = await getUserContacts(userEmail);
       socket.emit('contacts-updated', contacts);
+      
+      // Send call history
+      const callHistory = await CallHistory.find({
+        participants: userEmail
+      }).sort({ startedAt: -1 }).limit(20);
+      socket.emit('call-history-updated', callHistory);
       
       // Notify contacts that this user is online
       for (const contact of contacts) {
@@ -606,7 +658,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Handle chat messages - FIXED REAL-TIME MESSAGING
+  // Handle chat messages
   socket.on('send-message', async (data) => {
     try {
       const { connectionId, message, senderEmail } = data;
@@ -647,21 +699,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle call initiation - IMPROVED WEBRTC
-  socket.on('start-call', (data) => {
-    const { userEmail, otherUserEmail, callType } = data;
+  // Handle call initiation
+  socket.on('start-call', async (data) => {
+    const { userEmail, otherUserEmail, callType, connectionId } = data;
     
     console.log(`📞 Call attempt from ${userEmail} to ${otherUserEmail}`);
     
-    // Find connection between users
-    const connectionId = findConnectionBetweenUsers(userEmail, otherUserEmail);
+    // Create call record
+    const callHistory = new CallHistory({
+      connectionId,
+      participants: [userEmail, otherUserEmail],
+      callType,
+      startedAt: new Date(),
+      status: 'initiated'
+    });
+    await callHistory.save();
     
-    if (!connectionId) {
-      socket.emit('call-error', { 
-        message: 'No active connection found with this user. Please reconnect.' 
-      });
-      return;
-    }
+    activeCalls.set(connectionId, {
+      callId: callHistory._id,
+      startedAt: new Date(),
+      participants: [userEmail, otherUserEmail],
+      callType
+    });
     
     // Get the other user's socket ID
     const otherUserSocketId = activeUsers.get(otherUserEmail)?.socketId;
@@ -679,28 +738,102 @@ io.on('connection', (socket) => {
       from: userEmail,
       callType: callType || 'video',
       connectionId,
+      callId: callHistory._id,
       timestamp: new Date()
     });
     
     // Confirm to caller
     socket.emit('call-initiated', {
       connectionId,
+      callId: callHistory._id,
       to: otherUserEmail
     });
   });
 
   // Handle call answer
-  socket.on('answer-call', (data) => {
-    const { connectionId, toUser } = data;
+  socket.on('answer-call', async (data) => {
+    const { connectionId, toUser, callId } = data;
     
     console.log(`📞 Call answered for connection: ${connectionId}`);
+    
+    // Update call record
+    await CallHistory.findByIdAndUpdate(callId, {
+      status: 'answered',
+      startedAt: new Date()
+    });
     
     // Find the user who initiated the call
     const callerSocketId = activeUsers.get(toUser)?.socketId;
     if (callerSocketId) {
       io.to(callerSocketId).emit('call-answered', { 
         connectionId,
+        callId,
         timestamp: new Date()
+      });
+    }
+  });
+
+  // Handle call rejection
+  socket.on('reject-call', async (data) => {
+    const { callId, toUser } = data;
+    
+    console.log(`📞 Call rejected: ${callId}`);
+    
+    // Update call record
+    await CallHistory.findByIdAndUpdate(callId, {
+      status: 'rejected',
+      endedAt: new Date(),
+      duration: 0
+    });
+    
+    // Notify caller
+    const callerSocketId = activeUsers.get(toUser)?.socketId;
+    if (callerSocketId) {
+      io.to(callerSocketId).emit('call-rejected', {
+        callId,
+        timestamp: new Date()
+      });
+    }
+  });
+
+  // Handle call end with duration
+  socket.on('end-call', async (data) => {
+    const { toUser, connectionId, callId } = data;
+    
+    console.log(`📞 Call ended from ${socket.userEmail} to ${toUser}`);
+    
+    const call = activeCalls.get(connectionId);
+    if (call && callId) {
+      const endedAt = new Date();
+      const duration = Math.floor((endedAt - call.startedAt) / 1000); // in seconds
+      
+      // Update call record
+      await CallHistory.findByIdAndUpdate(callId, {
+        status: 'ended',
+        endedAt: endedAt,
+        duration: duration
+      });
+      
+      activeCalls.delete(connectionId);
+      
+      // Notify participants
+      call.participants.forEach(participant => {
+        const participantSocketId = activeUsers.get(participant)?.socketId;
+        if (participantSocketId) {
+          io.to(participantSocketId).emit('call-ended', {
+            from: socket.userEmail,
+            callId,
+            duration,
+            timestamp: endedAt
+          });
+          
+          // Send updated call history
+          CallHistory.find({
+            participants: participant
+          }).sort({ startedAt: -1 }).limit(20).then(history => {
+            io.to(participantSocketId).emit('call-history-updated', history);
+          });
+        }
       });
     }
   });
@@ -740,31 +873,6 @@ io.on('connection', (socket) => {
       io.to(targetSocketId).emit('ice-candidate', { 
         candidate,
         from: socket.userEmail
-      });
-    }
-  });
-
-  // Handle call end
-  socket.on('end-call', (data) => {
-    const { toUser, connectionId } = data;
-    
-    console.log(`📞 Call ended from ${socket.userEmail} to ${toUser}`);
-    
-    if (toUser) {
-      const targetSocketId = activeUsers.get(toUser)?.socketId;
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('call-ended', {
-          from: socket.userEmail,
-          timestamp: new Date()
-        });
-      }
-    }
-    
-    // Also notify all users in the connection room
-    if (connectionId) {
-      socket.to(connectionId).emit('call-ended', {
-        from: socket.userEmail,
-        timestamp: new Date()
       });
     }
   });
