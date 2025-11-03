@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,18 +9,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #6366f1;
-            --primary-dark: #4f46e5;
-            --primary-light: #8b5cf6;
-            --secondary-color: #10b981;
-            --secondary-dark: #059669;
-            --accent-color: #f59e0b;
-            --danger-color: #ef4444;
-            --warning-color: #f59e0b;
-            --dark-color: #1f2937;
-            --light-color: #f8fafc;
-            --gray-color: #6b7280;
-            --success-color: #10b981;
+            --primary-color: #000000;
+            --primary-dark: #333333;
+            --primary-light: #666666;
+            --secondary-color: #ffffff;
+            --secondary-dark: #f0f0f0;
+            --accent-color: #007bff;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --success-color: #28a745;
+            --dark-color: #1a1a1a;
+            --light-color: #ffffff;
+            --gray-color: #6c757d;
         }
         
         * {
@@ -29,8 +28,9 @@
         }
         
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0c0c0c 0%, #2d2d2d 100%);
             min-height: 100vh;
+            color: var(--light-color);
         }
         
         .hidden { display: none !important; }
@@ -38,21 +38,21 @@
         /* Glass morphism effect */
         .glass-card {
             background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
         
         .glass-nav {
-            background: rgba(255, 255, 255, 0.1) !important;
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3) !important;
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         /* Custom scrollbar */
         ::-webkit-scrollbar {
-            width: 6px;
+            width: 8px;
         }
         
         ::-webkit-scrollbar-track {
@@ -71,7 +71,7 @@
             overflow-y: auto; 
             padding: 15px;
             border-radius: 16px;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(0, 0, 0, 0.2);
         }
         
         .message { 
@@ -95,12 +95,12 @@
         }
         
         .own-message { 
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             color: white; 
             margin-left: auto;
             margin-right: 10px;
             border-bottom-right-radius: 6px;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
         
         .other-message { 
@@ -200,41 +200,41 @@
         .navbar-brand {
             font-weight: 700;
             font-size: 1.6em;
-            background: linear-gradient(135deg, #fff, #e0e7ff);
+            background: linear-gradient(135deg, #fff, #e0e0e0);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         
         /* Buttons */
         .btn-primary {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             border: none;
             border-radius: 12px;
             padding: 12px 24px;
             font-weight: 500;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
         
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
             background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
         }
         
         .btn-success {
-            background: linear-gradient(135deg, var(--secondary-color), #34d399);
+            background: linear-gradient(135deg, var(--success-color), #34d399);
             border: none;
             border-radius: 12px;
             padding: 12px 24px;
             font-weight: 500;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
         }
         
         .btn-success:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
         }
         
         .btn-danger {
@@ -244,12 +244,12 @@
             padding: 12px 24px;
             font-weight: 500;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
         }
         
         .btn-danger:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+            box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
         }
         
         /* Notifications */
@@ -269,6 +269,7 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             backdrop-filter: blur(10px);
             animation: notificationSlide 0.5s ease-out;
+            color: #333;
         }
         
         @keyframes notificationSlide {
@@ -323,9 +324,9 @@
         }
         
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+            0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
         }
         
         .offline {
@@ -356,12 +357,12 @@
         
         /* Active chat user */
         .active-chat-user {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             color: white;
             padding: 15px 20px;
             border-radius: 16px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
         
         .chat-user-info {
@@ -423,7 +424,7 @@
         }
         
         .badge-temporary {
-            background: linear-gradient(135deg, var(--accent-color), #fbbf24);
+            background: linear-gradient(135deg, var(--warning-color), #fbbf24);
         }
         
         /* History section */
@@ -476,6 +477,12 @@
             .call-controls {
                 padding: 15px;
             }
+            
+            .notification {
+                min-width: 280px;
+                right: 10px;
+                left: 10px;
+            }
         }
         
         /* Input styles */
@@ -490,7 +497,7 @@
         .form-control:focus {
             background: rgba(255, 255, 255, 0.15);
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+            box-shadow: 0 0 0 0.2rem rgba(0, 0, 0, 0.25);
             color: white;
         }
         
@@ -509,6 +516,41 @@
         .form-check-input:checked {
             background-color: var(--primary-color);
             border-color: var(--primary-color);
+        }
+        
+        /* Call ringing animation */
+        .ringing-animation {
+            animation: ring 1.5s infinite;
+        }
+        
+        @keyframes ring {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        /* Status indicators */
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-online {
+            background-color: var(--success-color);
+            box-shadow: 0 0 8px var(--success-color);
+        }
+        
+        .status-offline {
+            background-color: var(--gray-color);
+        }
+        
+        .status-calling {
+            background-color: var(--warning-color);
+            box-shadow: 0 0 8px var(--warning-color);
+            animation: pulse 1.5s infinite;
         }
     </style>
 </head>
@@ -539,7 +581,7 @@
                     <div class="card-body p-5 text-white">
                         <div class="text-center mb-4">
                             <div class="mb-3">
-                                <i class="fas fa-comments fa-4x" style="background: linear-gradient(135deg, #fff, #e0e7ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+                                <i class="fas fa-comments fa-4x" style="background: linear-gradient(135deg, #fff, #e0e0e0); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
                             </div>
                             <h2 class="card-title fw-bold">Welcome to Echo Pro</h2>
                             <p class="text-light">Professional real-time communication</p>
@@ -739,7 +781,7 @@
                                         <div class="d-flex align-items-center">
                                             <div class="chat-user-info me-3">
                                                 <span id="chatWithUser" class="text-white"></span>
-                                                <span id="chatUserStatus" class="online-status"></span>
+                                                <span id="chatUserStatus" class="status-indicator status-online"></span>
                                             </div>
                                             <button id="startVoiceCall" class="btn btn-success btn-sm me-2 call-btn">
                                                 <i class="fas fa-phone me-1"></i>Voice Call
@@ -763,7 +805,7 @@
                                         <div id="activeChatUser" class="active-chat-user hidden">
                                             <div class="chat-user-info">
                                                 <span>Chatting with: <strong id="currentChatUser"></strong></span>
-                                                <span id="currentChatUserStatus" class="online-status"></span>
+                                                <span id="currentChatUserStatus" class="status-indicator status-online"></span>
                                                 <span id="callStatus" class="call-status hidden"></span>
                                             </div>
                                         </div>
@@ -846,7 +888,7 @@
                                         <button id="muteVideo" class="btn-call btn-warning">
                                             <i class="fas fa-video"></i>
                                         </button>
-                                        <button id="endCallBtn" class="btn-call btn-danger">
+                                        <button id="endCallBtn" class="btn-call btn-danger ringing-animation">
                                             <i class="fas fa-phone-slash"></i>
                                         </button>
                                     </div>
@@ -915,6 +957,7 @@
         let callStartTime = null;
         let callDurationInterval = null;
         let currentCallLinkType = '24hours';
+        let isCallRinging = false;
 
         // Show notification
         function showNotification(message, type = 'info', duration = 5000) {
@@ -953,9 +996,10 @@
             callNotification.innerHTML = `
                 <div class="text-center">
                     <div class="mb-3">
-                        <i class="fas fa-phone fa-3x text-primary mb-2"></i>
+                        <i class="fas fa-phone fa-3x text-primary mb-2 ringing-animation"></i>
                         <h5>Incoming ${callType} Call</h5>
                         <p class="mb-2">From: <strong>${from}</strong></p>
+                        <p class="text-muted">Click Answer to accept the call</p>
                     </div>
                     <div class="d-grid gap-2">
                         <button class="btn btn-success btn-lg answer-call">
@@ -979,6 +1023,8 @@
                 declineIncomingCall(callId);
                 callNotification.remove();
             });
+            
+            isCallRinging = true;
         }
 
         // Show loading spinner
@@ -1022,7 +1068,7 @@
                 <div class="contact-item ${contact.isOnline ? 'contact-online' : 'contact-offline'}">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="online-indicator ${contact.isOnline ? 'online' : 'offline'}"></span>
+                            <span class="status-indicator ${contact.isOnline ? 'status-online' : 'status-offline'}"></span>
                             <strong class="text-white">${contact.email}</strong>
                             <span class="connection-badge ${contact.connectionType === 'permanent' ? 'badge-permanent' : 'badge-temporary'} text-white">
                                 ${contact.connectionType === 'permanent' ? 'Permanent' : '24H'}
@@ -1154,11 +1200,11 @@
             
             if (contact) {
                 if (contact.isOnline) {
-                    statusElement.className = 'online-status';
-                    chatStatusElement.className = 'online-status';
+                    statusElement.className = 'status-indicator status-online';
+                    chatStatusElement.className = 'status-indicator status-online';
                 } else {
-                    statusElement.className = 'offline-status';
-                    chatStatusElement.className = 'offline-status';
+                    statusElement.className = 'status-indicator status-offline';
+                    chatStatusElement.className = 'status-indicator status-offline';
                 }
             }
         }
@@ -1215,6 +1261,7 @@
                 showCallInterface(isVideo);
                 document.getElementById('callTypeBadge').textContent = isVideo ? 'Video Call' : 'Voice Call';
                 document.getElementById('callStatusBadge').textContent = 'Calling...';
+                document.getElementById('callStatusBadge').className = 'badge bg-warning ms-2';
                 hideLoading();
                 showNotification(`Calling ${userEmail}...`, 'info');
                 isInCall = true;
@@ -1275,6 +1322,7 @@
                             console.log('🔊 Remote audio track connected');
                             showNotification('Audio connected!', 'success');
                             document.getElementById('callStatusBadge').textContent = 'Connected';
+                            document.getElementById('callStatusBadge').className = 'badge bg-success ms-2';
                         }
                     }
                 };
@@ -1296,12 +1344,14 @@
                         case 'connected':
                             showNotification('Call connected successfully!', 'success');
                             document.getElementById('callStatusBadge').textContent = 'Connected';
+                            document.getElementById('callStatusBadge').className = 'badge bg-success ms-2';
                             startCallTimer();
                             break;
                         case 'disconnected':
                         case 'failed':
                             showNotification('Call disconnected', 'warning');
                             document.getElementById('callStatusBadge').textContent = 'Disconnected';
+                            document.getElementById('callStatusBadge').className = 'badge bg-danger ms-2';
                             stopCallTimer();
                             break;
                         case 'closed':
@@ -1314,9 +1364,9 @@
                 // Handle ICE connection state
                 peerConnection.oniceconnectionstatechange = () => {
                     console.log('❄️ ICE connection state:', peerConnection.iceConnectionState);
+                    const state = peerConnection.iceConnectionState;
                     document.getElementById('callStatusBadge').textContent = 
-                        peerConnection.iceConnectionState.charAt(0).toUpperCase() + 
-                        peerConnection.iceConnectionState.slice(1);
+                        state.charAt(0).toUpperCase() + state.slice(1);
                 };
                 
                 // Create and set local description
@@ -1401,6 +1451,7 @@
                             console.log('🔊 Remote audio track connected in answer');
                             showNotification('Audio connected!', 'success');
                             document.getElementById('callStatusBadge').textContent = 'Connected';
+                            document.getElementById('callStatusBadge').className = 'badge bg-success ms-2';
                         }
                     }
                 };
@@ -1868,6 +1919,7 @@
             // Store call data for answering
             window.incomingCallData = data;
             currentCallId = data.callId;
+            currentChatUser = data.from;
         });
 
         // Call rejected
@@ -1949,13 +2001,14 @@
             console.log('✅ Call answered:', data);
             showNotification('Call connected!', 'success');
             startCallTimer();
+            isCallRinging = false;
         });
 
         // Handle call ended
         socket.on('call-ended', (data) => {
             console.log('📞 Call ended received from server');
             if (isInCall) {
-                showNotification(`Call ended. Duration: ${formatDuration(data.duration)}`, 'info');
+                showNotification(`Call ended by ${data.endedBy}. Duration: ${formatDuration(data.duration)}`, 'info');
                 endCall();
             }
         });
@@ -2081,9 +2134,11 @@
                 showCallInterface(data.callType === 'video');
                 document.getElementById('callTypeBadge').textContent = data.callType === 'video' ? 'Video Call' : 'Voice Call';
                 document.getElementById('callStatusBadge').textContent = 'Connecting...';
+                document.getElementById('callStatusBadge').className = 'badge bg-warning ms-2';
                 hideLoading();
                 showNotification('Call answered!', 'success');
                 isInCall = true;
+                isCallRinging = false;
                 
                 // Clear incoming call data
                 window.incomingCallData = null;
@@ -2104,6 +2159,7 @@
                 showNotification('Call declined', 'info');
                 window.incomingCallData = null;
                 currentCallId = null;
+                isCallRinging = false;
             }
         }
 
@@ -2116,6 +2172,9 @@
                 document.getElementById('localVideo').classList.add('hidden');
             } else {
                 document.getElementById('localVideo').classList.remove('hidden');
+                if (localStream) {
+                    document.getElementById('localVideo').srcObject = localStream;
+                }
             }
         }
 
@@ -2174,6 +2233,7 @@
             window.incomingCallData = null;
             currentCallId = null;
             isInCall = false;
+            isCallRinging = false;
             
             console.log('📞 Call ended successfully');
         }
