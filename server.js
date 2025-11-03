@@ -14,7 +14,7 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "DELETE"],
     credentials: true
   }
 });
@@ -45,7 +45,7 @@ mongoose.connect(MONGO_URI, {
   console.error('❌ MongoDB connection error:', err);
 });
 
-// Email transporter setup - Fixed the function name
+// Email transporter setup
 const emailTransporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -79,7 +79,8 @@ const chatMessageSchema = new mongoose.Schema({
   senderEmail: String,
   message: String,
   messageType: { type: String, default: 'text' },
-  timestamp: { type: Date, default: Date.now }
+  timestamp: { type: Date, default: Date.now },
+  isDeleted: { type: Boolean, default: false }
 });
 
 const userConnectionSchema = new mongoose.Schema({
@@ -88,7 +89,8 @@ const userConnectionSchema = new mongoose.Schema({
   connectionHistory: [{
     userEmail: String,
     connectedAt: Date,
-    connectionType: String
+    connectionType: String,
+    status: { type: String, default: 'active' }
   }],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
@@ -233,9 +235,9 @@ app.post('/api/send-email-request', async (req, res) => {
               <style>
                 body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
                 .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: linear-gradient(135deg, #000000, #333333); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
                 .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-                .button { display: inline-block; background: linear-gradient(135deg, #000000, #333333); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; margin: 20px 0; }
+                .button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; margin: 20px 0; }
                 .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
                 .features { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
                 .feature-item { margin: 10px 0; }
@@ -502,6 +504,100 @@ app.post('/api/accept-request', async (req, res) => {
   }
 });
 
+// Delete connection
+app.delete('/api/connection/:userEmail/:contactEmail', async (req, res) => {
+  try {
+    const { userEmail, contactEmail } = req.params;
+    
+    // Remove from user connections
+    await UserConnection.updateOne(
+      { userEmail },
+      { 
+        $pull: { 
+          connectedUsers: contactEmail,
+          connectionHistory: { userEmail: contactEmail }
+        } 
+      }
+    );
+    
+    // Remove connection from active connections
+    const connectionId = generateConnectionId(userEmail, contactEmail);
+    activeConnections.delete(connectionId);
+    
+    // Notify both users
+    const userSocketId = activeUsers.get(userEmail)?.socketId;
+    const contactSocketId = activeUsers.get(contactEmail)?.socketId;
+    
+    if (userSocketId) {
+      const userContacts = await getUserContacts(userEmail);
+      io.to(userSocketId).emit('contacts-updated', userContacts);
+      io.to(userSocketId).emit('notification', {
+        type: 'success',
+        message: `Connection with ${contactEmail} has been removed`
+      });
+    }
+    
+    if (contactSocketId) {
+      const contactContacts = await getUserContacts(contactEmail);
+      io.to(contactSocketId).emit('contacts-updated', contactContacts);
+      io.to(contactSocketId).emit('notification', {
+        type: 'info',
+        message: `${userEmail} removed your connection`
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Connection deleted successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error deleting connection:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Delete message
+app.delete('/api/message/:messageId', async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    
+    const message = await ChatMessage.findByIdAndUpdate(
+      messageId,
+      { isDeleted: true },
+      { new: true }
+    );
+    
+    if (!message) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Message not found' 
+      });
+    }
+    
+    // Notify all users in the connection
+    io.to(message.connectionId).emit('message-deleted', {
+      messageId: message._id,
+      connectionId: message.connectionId
+    });
+    
+    res.json({
+      success: true,
+      message: 'Message deleted successfully'
+    });
+    
+  } catch (error) {
+    console.error('Error deleting message:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Get user connections
 app.get('/api/user-connections/:userEmail', async (req, res) => {
   try {
@@ -553,7 +649,8 @@ app.get('/api/contacts/:userEmail', async (req, res) => {
 app.get('/api/chat/:connectionId', async (req, res) => {
   try {
     const messages = await ChatMessage.find({ 
-      connectionId: req.params.connectionId 
+      connectionId: req.params.connectionId,
+      isDeleted: false
     }).sort({ timestamp: 1 });
     
     res.json({
@@ -618,7 +715,8 @@ async function updateUserConnections(userEmail, connectedUserEmail, connectionTy
       connectionHistory: [{
         userEmail: connectedUserEmail,
         connectedAt: new Date(),
-        connectionType: connectionType
+        connectionType: connectionType,
+        status: 'active'
       }]
     });
   } else {
@@ -627,7 +725,8 @@ async function updateUserConnections(userEmail, connectedUserEmail, connectionTy
       userConnection.connectionHistory.push({
         userEmail: connectedUserEmail,
         connectedAt: new Date(),
-        connectionType: connectionType
+        connectionType: connectionType,
+        status: 'active'
       });
     }
     userConnection.updatedAt = new Date();
@@ -646,15 +745,17 @@ async function getUserContacts(userEmail) {
     const isOnline = activeUsers.has(connectedEmail);
     const lastSeen = activeUsers.get(connectedEmail)?.lastSeen || new Date();
     const connectionInfo = userConnection.connectionHistory.find(
-      hist => hist.userEmail === connectedEmail
+      hist => hist.userEmail === connectedEmail && hist.status === 'active'
     );
     
-    contacts.push({
-      email: connectedEmail,
-      isOnline,
-      lastSeen: lastSeen.toISOString(),
-      connectionType: connectionInfo?.connectionType || '24hours'
-    });
+    if (connectionInfo) {
+      contacts.push({
+        email: connectedEmail,
+        isOnline,
+        lastSeen: lastSeen.toISOString(),
+        connectionType: connectionInfo.connectionType
+      });
+    }
   }
   
   return contacts;
@@ -684,12 +785,23 @@ io.on('connection', (socket) => {
       }).sort({ startedAt: -1 }).limit(20);
       socket.emit('call-history-updated', callHistory);
       
+      // Send notification
+      socket.emit('notification', {
+        type: 'success',
+        message: 'Successfully connected to Echo Pro'
+      });
+      
       for (const contact of contacts) {
         const contactSocketId = activeUsers.get(contact.email)?.socketId;
         if (contactSocketId) {
           io.to(contactSocketId).emit('user-status-changed', {
             email: userEmail,
             isOnline: true
+          });
+          
+          io.to(contactSocketId).emit('notification', {
+            type: 'info',
+            message: `${userEmail} is now online`
           });
         }
       }
@@ -729,6 +841,11 @@ io.on('connection', (socket) => {
       message: `${userEmail} joined the connection`,
       timestamp: new Date()
     });
+    
+    socket.emit('notification', {
+      type: 'success',
+      message: `Joined connection successfully`
+    });
   });
 
   // Handle chat messages
@@ -758,6 +875,12 @@ io.on('connection', (socket) => {
       
       socket.emit('message-sent', messageData);
       socket.to(connectionId).emit('receive-message', messageData);
+      
+      // Send notification to other users
+      socket.to(connectionId).emit('notification', {
+        type: 'info',
+        message: `New message from ${senderEmail}`
+      });
       
       console.log(`💬 Message sent in ${connectionId} from ${senderEmail}: ${message}`);
       
@@ -797,12 +920,16 @@ io.on('connection', (socket) => {
       socket.emit('call-error', { 
         message: 'User is currently offline' 
       });
+      socket.emit('notification', {
+        type: 'warning',
+        message: `${otherUserEmail} is currently offline`
+      });
       return;
     }
     
     console.log(`📞 Sending call to ${otherUserEmail} (${otherUserSocketId})`);
     
-    // Send call to the other user
+    // Send call to the other user - MANUAL ANSWERING ONLY
     io.to(otherUserSocketId).emit('incoming-call', {
       from: userEmail,
       callType: 'voice',
@@ -816,6 +943,11 @@ io.on('connection', (socket) => {
       connectionId,
       callId: callHistory._id,
       to: otherUserEmail
+    });
+    
+    socket.emit('notification', {
+      type: 'info',
+      message: `Calling ${otherUserEmail}...`
     });
   });
 
@@ -846,7 +978,17 @@ io.on('connection', (socket) => {
         callId,
         timestamp: new Date()
       });
+      
+      io.to(callerSocketId).emit('notification', {
+        type: 'success',
+        message: 'Call answered!'
+      });
     }
+    
+    socket.emit('notification', {
+      type: 'success',
+      message: 'Call connected successfully!'
+    });
   });
 
   // Handle call rejection
@@ -877,7 +1019,17 @@ io.on('connection', (socket) => {
         callId,
         timestamp: new Date()
       });
+      
+      io.to(callerSocketId).emit('notification', {
+        type: 'warning',
+        message: 'Call was rejected'
+      });
     }
+    
+    socket.emit('notification', {
+      type: 'info',
+      message: 'Call rejected'
+    });
   });
 
   // Handle call end with duration
@@ -911,6 +1063,11 @@ io.on('connection', (socket) => {
               duration,
               timestamp: endedAt,
               endedBy: socket.userEmail
+            });
+            
+            io.to(participantSocketId).emit('notification', {
+              type: 'info',
+              message: `Call ended. Duration: ${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')}`
             });
             
             // Send updated call history
@@ -1004,6 +1161,11 @@ io.on('connection', (socket) => {
                 timestamp: endedAt,
                 endedBy: 'system'
               });
+              
+              io.to(participantSocketId).emit('notification', {
+                type: 'warning',
+                message: `${socket.userEmail} disconnected from the call`
+              });
             }
           }
         });
@@ -1030,6 +1192,11 @@ io.on('connection', (socket) => {
                     email: socket.userEmail,
                     isOnline: false,
                     lastSeen: new Date().toISOString()
+                  });
+                  
+                  io.to(contactSocketId).emit('notification', {
+                    type: 'info',
+                    message: `${socket.userEmail} is now offline`
                   });
                 }
               }
