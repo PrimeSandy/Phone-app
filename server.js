@@ -45,8 +45,8 @@ mongoose.connect(MONGO_URI, {
   console.error('❌ MongoDB connection error:', err);
 });
 
-// Email transporter (for sending direct email requests)
-const transporter = nodemailer.createTransporter({
+// Email transporter (for sending direct email requests) - FIXED: createTransport not createTransporter
+const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: 'your-email@gmail.com', // Replace with your email
@@ -125,7 +125,8 @@ app.post('/api/send-email-request', async (req, res) => {
     });
     await request.save();
     
-    // Send email
+    // Send email (commented out for now to avoid email errors)
+    /*
     const mailOptions = {
       from: 'your-email@gmail.com',
       to: receiverEmail,
@@ -146,18 +147,19 @@ app.post('/api/send-email-request', async (req, res) => {
     };
     
     await transporter.sendMail(mailOptions);
+    */
     
     res.json({
       success: true,
       requestId,
-      message: 'Connection request sent via email successfully'
+      message: 'Connection request generated successfully (Email feature coming soon)'
     });
     
   } catch (error) {
-    console.error('Error sending email request:', error);
+    console.error('Error generating request:', error);
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to send email request'
+      error: 'Failed to generate request'
     });
   }
 });
