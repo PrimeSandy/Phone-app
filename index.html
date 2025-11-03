@@ -176,6 +176,23 @@
             border-radius: 10px;
             margin-bottom: 15px;
         }
+        .chat-user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .online-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--success-color);
+        }
+        .offline-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #6b7280;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -378,7 +395,10 @@
                                     </h5>
                                     <div id="chatControls" class="hidden">
                                         <div class="d-flex align-items-center">
-                                            <span class="me-3" id="chatWithUser"></span>
+                                            <div class="chat-user-info me-3">
+                                                <span id="chatWithUser"></span>
+                                                <span id="chatUserStatus" class="online-status"></span>
+                                            </div>
                                             <button id="startVoiceCall" class="btn btn-success btn-sm me-2">
                                                 <i class="fas fa-phone me-1"></i>Voice Call
                                             </button>
@@ -399,7 +419,10 @@
                                     </div>
                                     <div id="chatSection" class="hidden">
                                         <div id="activeChatUser" class="active-chat-user hidden">
-                                            Chatting with: <strong id="currentChatUser"></strong>
+                                            <div class="chat-user-info">
+                                                <span>Chatting with: <strong id="currentChatUser"></strong></span>
+                                                <span id="currentChatUserStatus" class="online-status"></span>
+                                            </div>
                                         </div>
                                         <div id="chatMessages" class="chat-container mb-3"></div>
                                         <div class="input-group">
@@ -424,6 +447,7 @@
                             <div class="card-header bg-white">
                                 <h5 class="card-title mb-0">
                                     <i class="fas fa-phone me-2"></i>Call in Progress
+                                    <span class="badge bg-info ms-2" id="callTypeBadge">Voice Call</span>
                                 </h5>
                             </div>
                             <div class="card-body p-0">
@@ -502,6 +526,7 @@
         let currentCallType = null;
         let userContacts = [];
         let isInCall = false;
+        let chatHistoryLoaded = false;
 
         // Show notification
         function showNotification(message, type = 'info', duration = 5000) {
@@ -644,8 +669,8 @@
             });
         }
 
-        // Start chat with user
-        function startChatWithUser(userEmail) {
+        // Start chat with user - IMPROVED
+        async function startChatWithUser(userEmail) {
             currentChatUser = userEmail;
             document.getElementById('currentChatUser').textContent = userEmail;
             document.getElementById('activeChatUser').classList.remove('hidden');
@@ -654,24 +679,36 @@
             document.getElementById('chatControls').classList.remove('hidden');
             document.getElementById('chatWithUser').textContent = `Chatting with: ${userEmail}`;
             
-            // Find connection ID for this user
-            findConnectionWithUser(userEmail).then(connectionId => {
-                if (connectionId) {
-                    currentConnectionId = connectionId;
-                    // Load chat history if available
-                    loadChatHistory(connectionId);
-                } else {
-                    showNotification('No active connection found with this user', 'warning');
+            // Update online status
+            updateChatUserStatus(userEmail);
+            
+            // Find or create connection ID for this user
+            const connectionId = await findOrCreateConnection(userEmail);
+            if (connectionId) {
+                currentConnectionId = connectionId;
+                // Join the connection room
+                socket.emit('join-connection', {
+                    connectionId: connectionId,
+                    userEmail: currentUser.email
+                });
+                
+                // Load chat history if not already loaded
+                if (!chatHistoryLoaded) {
+                    await loadChatHistory(connectionId);
+                    chatHistoryLoaded = true;
                 }
-            });
+            } else {
+                showNotification('Failed to establish connection', 'danger');
+            }
             
             // Switch to chat tab
             document.getElementById('chat-tab').click();
         }
 
-        // Find connection with user
-        async function findConnectionWithUser(userEmail) {
+        // Find or create connection with user
+        async function findOrCreateConnection(userEmail) {
             try {
+                // First try to find existing connection
                 const response = await fetch(`/api/user-connections/${currentUser.email}`);
                 const result = await response.json();
                 
@@ -679,15 +716,38 @@
                     const connection = result.connections.find(conn => 
                         conn.otherUser === userEmail
                     );
-                    return connection ? connection.connectionId : null;
+                    if (connection) {
+                        return connection.connectionId;
+                    }
                 }
+                
+                // If no connection found, create one using the simplified format
+                return `${currentUser.email}_${userEmail}`;
+                
             } catch (error) {
                 console.error('Error finding connection:', error);
+                return `${currentUser.email}_${userEmail}`;
             }
-            return null;
         }
 
-        // Start call with user
+        // Update chat user status
+        function updateChatUserStatus(userEmail) {
+            const contact = userContacts.find(c => c.email === userEmail);
+            const statusElement = document.getElementById('currentChatUserStatus');
+            const chatStatusElement = document.getElementById('chatUserStatus');
+            
+            if (contact) {
+                if (contact.isOnline) {
+                    statusElement.className = 'online-status';
+                    chatStatusElement.className = 'online-status';
+                } else {
+                    statusElement.className = 'offline-status';
+                    chatStatusElement.className = 'offline-status';
+                }
+            }
+        }
+
+        // Start call with user - IMPROVED WEBRTC
         async function startCallWithUser(userEmail, isVideo) {
             if (!currentUser) return;
             
@@ -695,17 +755,29 @@
                 currentCallType = isVideo ? 'video' : 'voice';
                 showLoading();
                 
-                // Get user media
+                // Get user media with better constraints
                 localStream = await navigator.mediaDevices.getUserMedia({
-                    video: isVideo,
-                    audio: true
+                    video: isVideo ? {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } : false,
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
                 });
                 
                 if (isVideo) {
                     document.getElementById('localVideo').srcObject = localStream;
                 }
                 
+                // Setup peer connection with better configuration
                 setupPeerConnection();
+                
+                // Create offer for WebRTC
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
                 
                 // Start the call
                 socket.emit('start-call', {
@@ -714,7 +786,14 @@
                     callType: currentCallType
                 });
                 
+                // Send WebRTC offer
+                socket.emit('webrtc-offer', {
+                    offer: offer,
+                    toUser: userEmail
+                });
+                
                 showCallInterface(isVideo);
+                document.getElementById('callTypeBadge').textContent = isVideo ? 'Video Call' : 'Voice Call';
                 hideLoading();
                 showNotification(`Calling ${userEmail}...`, 'info');
                 isInCall = true;
@@ -1041,6 +1120,11 @@
         // When contacts list is updated
         socket.on('contacts-updated', (contacts) => {
             updateContactsList(contacts);
+            
+            // Update current chat user status if applicable
+            if (currentChatUser) {
+                updateChatUserStatus(currentChatUser);
+            }
         });
 
         // When user status changes
@@ -1054,6 +1138,7 @@
             updateContactsList(updatedContacts);
             
             if (data.email === currentChatUser) {
+                updateChatUserStatus(data.email);
                 const status = data.isOnline ? 'online' : 'offline';
                 showNotification(`${data.email} is now ${status}`, 'info');
             }
@@ -1061,14 +1146,7 @@
 
         // Handle received messages
         socket.on('receive-message', (data) => {
-            if (data.senderEmail !== currentUser.email) {
-                displayMessage(data.senderEmail, data.message, true);
-            }
-        });
-
-        // Handle message sent confirmation
-        socket.on('message-sent', (data) => {
-            displayMessage(currentUser.email, data.message, false);
+            displayMessage(data.senderEmail, data.message, data.senderEmail !== currentUser.email);
         });
 
         socket.on('user-joined', (data) => {
@@ -1090,6 +1168,37 @@
             window.incomingCallData = data;
         });
 
+        // WebRTC offer received
+        socket.on('webrtc-offer', async (data) => {
+            console.log('📞 WebRTC offer received');
+            if (!peerConnection) {
+                setupPeerConnection();
+            }
+            
+            await peerConnection.setRemoteDescription(data.offer);
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            
+            socket.emit('webrtc-answer', {
+                answer: answer,
+                toUser: data.from
+            });
+        });
+
+        // WebRTC answer received
+        socket.on('webrtc-answer', async (data) => {
+            console.log('📞 WebRTC answer received');
+            await peerConnection.setRemoteDescription(data.answer);
+        });
+
+        // ICE candidate received
+        socket.on('ice-candidate', async (data) => {
+            console.log('❄️ ICE candidate received');
+            if (peerConnection) {
+                await peerConnection.addIceCandidate(data.candidate);
+            }
+        });
+
         // Call initiated confirmation
         socket.on('call-initiated', (data) => {
             console.log('✅ Call initiated:', data);
@@ -1107,14 +1216,7 @@
             showNotification('Call connected!', 'success');
         });
 
-        socket.on('ice-candidate', async (data) => {
-            console.log('❄️ ICE candidate received');
-            if (peerConnection) {
-                await peerConnection.addIceCandidate(data.candidate);
-            }
-        });
-
-        // FIXED: Handle call ended - prevent duplicate notifications
+        // Handle call ended
         socket.on('call-ended', (data) => {
             console.log('📞 Call ended received from server');
             if (isInCall) {
@@ -1128,7 +1230,7 @@
             showNotification('Connection error: ' + data.message, 'danger');
         });
 
-        // Send message - FIXED: Check for currentChatUser instead of connectionId
+        // Send message - FIXED
         document.getElementById('sendMessage').addEventListener('click', sendMessage);
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
@@ -1145,10 +1247,12 @@
                     senderEmail: currentUser.email
                 });
                 
-                // Clear input immediately, message will appear via 'message-sent' event
+                // Clear input
                 messageInput.value = '';
-            } else {
+            } else if (!currentChatUser) {
                 showNotification('Please select a contact to chat with', 'warning');
+            } else if (!currentConnectionId) {
+                showNotification('No active connection. Please reconnect.', 'warning');
             }
         }
 
@@ -1159,7 +1263,7 @@
             
             const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             messageDiv.innerHTML = `
-                <div class="fw-semibold small">${sender}</div>
+                <div class="fw-semibold small">${isOther ? sender : 'You'}</div>
                 <div class="message-content">${message}</div>
                 <div class="text-end small opacity-75">${time}</div>
             `;
@@ -1199,16 +1303,19 @@
             }
         }
 
-        // WebRTC Functions
+        // WebRTC Functions - IMPROVED
         function setupPeerConnection() {
-            peerConnection = new RTCPeerConnection({
+            const configuration = {
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' }
                 ]
-            });
+            };
             
-            // Add local stream
+            peerConnection = new RTCPeerConnection(configuration);
+            
+            // Add local stream tracks to peer connection
             if (localStream) {
                 localStream.getTracks().forEach(track => {
                     peerConnection.addTrack(track, localStream);
@@ -1218,7 +1325,10 @@
             // Handle remote stream
             peerConnection.ontrack = (event) => {
                 console.log('📹 Remote stream received');
-                document.getElementById('remoteVideo').srcObject = event.streams[0];
+                const remoteVideo = document.getElementById('remoteVideo');
+                if (event.streams && event.streams[0]) {
+                    remoteVideo.srcObject = event.streams[0];
+                }
             };
             
             // Handle ICE candidates
@@ -1228,6 +1338,14 @@
                         candidate: event.candidate,
                         toUser: currentChatUser
                     });
+                }
+            };
+            
+            // Handle connection state changes
+            peerConnection.onconnectionstatechange = () => {
+                console.log('🔗 Connection state:', peerConnection.connectionState);
+                if (peerConnection.connectionState === 'connected') {
+                    showNotification('Call connected successfully!', 'success');
                 }
             };
         }
@@ -1242,9 +1360,14 @@
                 currentCallType = data.callType;
                 currentChatUser = data.from;
                 
+                // Get user media
                 localStream = await navigator.mediaDevices.getUserMedia({
                     video: data.callType === 'video',
-                    audio: true
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
                 });
                 
                 if (data.callType === 'video') {
@@ -1259,6 +1382,7 @@
                 });
                 
                 showCallInterface(data.callType === 'video');
+                document.getElementById('callTypeBadge').textContent = data.callType === 'video' ? 'Video Call' : 'Voice Call';
                 hideLoading();
                 showNotification('Call answered!', 'success');
                 isInCall = true;
@@ -1285,7 +1409,7 @@
         }
 
         function showCallInterface(isVideo) {
-            document.getElementById('chat').classList.add('hidden');
+            document.getElementById('appTabs').classList.add('hidden');
             document.getElementById('callSection').classList.remove('hidden');
             document.getElementById('endCall').classList.remove('hidden');
             
@@ -1336,7 +1460,7 @@
             }
             
             document.getElementById('callSection').classList.add('hidden');
-            document.getElementById('chat').classList.remove('hidden');
+            document.getElementById('appTabs').classList.remove('hidden');
             document.getElementById('endCall').classList.add('hidden');
             
             document.getElementById('localVideo').srcObject = null;
